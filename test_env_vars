@@ -1,0 +1,5 @@
+export DRTRANSCODE_BUCKET=neh-digi-test
+export DRTRANSCODE_INPUT_KEY=input_folder/pip_input.mkv
+export DRTRANSCODE_INPUT_FILENAME=pip_input.mkv
+export DRTRANSCODE_OUTPUT_KEY=output_folder/finishedpip.mp4
+export DRTRANSCODE_OUTPUT_FILENAME=finishedpip.mp4
