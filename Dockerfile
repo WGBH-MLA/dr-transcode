@@ -11,4 +11,4 @@ ADD aws_credentials /root/.aws/credentials
 ADD transcode.sh transcode.sh 
 RUN chmod +x transcode.sh
 
-CMD ./transcode.sh
+CMD bash -c "./transcode.sh"
