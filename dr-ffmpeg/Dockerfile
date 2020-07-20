@@ -6,7 +6,7 @@ WORKDIR /root
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y awscli ffmpeg
 
 # for production, leave this out and place by hand
-ADD aws_credentials /root/.aws/credentials
+# ADD aws_credentials /root/.aws/credentials
 
 ADD transcode.sh transcode.sh 
 RUN chmod +x transcode.sh
