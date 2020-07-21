@@ -1,6 +1,9 @@
 # download input file
 cd /root
 
+
+[ -z "$DRTRANSCODE_BUCKET" ] && [ -z "$DRTRANSCODE_INPUT_KEY" ] && [ -z "$DRTRANSCODE_INPUT_FILENAME" ] && [ -z "$DRTRANSCODE_OUTPUT_FILENAME" ] && [ -z "$DRTRANSCODE_OUTPUT_KEY" ] && echo "Missing DRTRANSCODE env variables, bye bye!" && exit 0
+
 aws --endpoint-url 'http://s3-bos.wgbh.org' s3api get-object --bucket $DRTRANSCODE_BUCKET --key $DRTRANSCODE_INPUT_KEY $DRTRANSCODE_INPUT_FILENAME
 
 # cat /root/.aws/credentials

@@ -1,3 +1,4 @@
 aws_credentials
 notes
 .DS_Store
+kubeconfig
