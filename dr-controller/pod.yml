@@ -14,7 +14,7 @@ spec:
     - name: dr-ffmpeg
       image: mla-dockerhub.wgbh.org/dr-ffmpeg:18
       volumeMounts:
-      - mountPath: /mnt
+      - mountPath: /root/.aws
         name: obstoresecrets
         readOnly: true
       env:
