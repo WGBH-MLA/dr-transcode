@@ -12,7 +12,7 @@ spec:
         secretName: credentials
   containers:
     - name: dr-ffmpeg
-      image: mla-dockerhub.wgbh.org/dr-ffmpeg:latest
+      image: mla-dockerhub.wgbh.org/dr-ffmpeg:14
       volumeMounts:
       - mountPath: /mnt
         name: obstoresecrets
