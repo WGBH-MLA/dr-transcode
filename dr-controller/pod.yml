@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: dr-ffmpeg
+spec:
+  volumes:
+    - name: obstoresecrets
+      secret:
+        defaultMode: 256
+        optional: false
+        secretName: credentials
+  containers:
+    - name: dr-ffmpeg
+      image: mla-dockerhub.wgbh.org/dr-ffmpeg:9
+      volumeMounts:
+      - mountPath: /mnt
+        name: obstoresecrets
+        readOnly: true
+      env:
+      - name: REALCOOL
+        value: wowowow
