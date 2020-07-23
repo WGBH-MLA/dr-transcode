@@ -9,7 +9,7 @@ spec:
       secret:
         defaultMode: 256
         optional: false
-        secretName: credentials
+        secretName: obstoresecrets
   containers:
     - name: dr-ffmpeg
       image: mla-dockerhub.wgbh.org/dr-ffmpeg:14
