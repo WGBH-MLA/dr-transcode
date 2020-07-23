@@ -12,13 +12,21 @@ spec:
         secretName: obstoresecrets
   containers:
     - name: dr-ffmpeg
-      image: mla-dockerhub.wgbh.org/dr-ffmpeg:18
+      image: mla-dockerhub.wgbh.org/dr-ffmpeg:20
       volumeMounts:
       - mountPath: /root/.aws
         name: obstoresecrets
         readOnly: true
       env:
-      - name: REALCOOL
-        value: wowowow
+      - name: DRTRANSCODE_BUCKET
+        value: nehdigitization
+      - name: DRTRANSCODE_INPUT_KEY
+        value: pip_input.mkv
+      - name: DRTRANSCODE_INPUT_FILENAME
+        value: pip_input.mkv
+      - name: DRTRANSCODE_OUTPUT_KEY
+        value: pip_output.mp4
+      - name: DRTRANSCODE_OUTPUT_FILENAME
+        value: pip_output.mp4
   imagePullSecrets:
       - name: mla-dockerhub
