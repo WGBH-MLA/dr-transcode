@@ -11,9 +11,9 @@ module JobStatus
 end
 
 # load db..
-client = Mysql2::Client.new(host: "mysql", username: "root", database: "drtranscode", password: "", port: 3306)
+@client = Mysql2::Client.new(host: "mysql", username: "root", database: "drtranscode", password: "", port: 3306)
 #  sqs client
-sqs = Aws::SQS::Client.new(region: 'us-east-1')
+@sqs = Aws::SQS::Client.new(region: 'us-east-1')
 
 
 def set_job_status(uid, new_status)
@@ -36,7 +36,7 @@ def init_job(msg)
   status = JobStatus::Received
   input_filename = "nothin"
 
-  resp = client.query(%(INSERT INTO jobs (uid, status, input_filename) VALUES(#{uid}, #{status}, #{input_filename})))
+  resp = @client.query(%(INSERT INTO jobs (uid, status, input_filename) VALUES(#{uid}, #{status}, #{input_filename})))
   puts resp.inspect
 end
 
@@ -48,7 +48,7 @@ def begin_job(uid, input_filename)
   set_job_status(uid, JobStatus::Working)
 end
 
-resp = sqs.receive_message(queue_url: 'https://sqs.us-east-1.amazonaws.com/127946490116/dr-transcode-queue', max_number_of_messages: 10)
+resp = @sqs.receive_message(queue_url: 'https://sqs.us-east-1.amazonaws.com/127946490116/dr-transcode-queue', max_number_of_messages: 10)
 
 # check if its time to LIVE
 msgs = resp.messages
@@ -72,7 +72,7 @@ if msgs && msgs[0]
 end
 
 # check if its time to DIE
-resp = client.query("select * from jobs where status=#{JobStatus::CompletedWork}")
+resp = @client.query("select * from jobs where status=#{JobStatus::CompletedWork}")
 puts resp.inspect
 
 
