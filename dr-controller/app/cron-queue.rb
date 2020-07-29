@@ -29,25 +29,20 @@ def validate_sqs_message(msg)
   true
 end
 
-def init_job(msg)
-  # set up job in mysql db
-
-  # unique job id
+def init_job(input_filename)
+  # chck if job already started..
+  # return if already found
   uid = SecureRandom.uuid
-  puts uid
-  status = JobStatus::Received
-  puts status
-  input_filename = JSON.parse(msg)[:input_filename]
-  puts input_filename
-
-  resp = @client.query(%(INSERT INTO jobs (uid, status) VALUES(#{uid}, #{status}, #{input_filename})))
-  puts resp.inspect
+  query = %(INSERT INTO jobs (uid, status, input_filename) VALUES("#{uid}", #{JobStatus::Received}, "#{input_filename}"))
+  puts query
+  resp = @client.query(query)
+  return uid
 end
 
-def begin_job(uid, input_filename)
+def begin_job(uid)
   # start the ffmpeg job
-  
   # run kubectl command..
+
   puts "I sure would like to start #{uid} for #{input_filename}!"
   set_job_status(uid, JobStatus::Working)
 end
@@ -61,13 +56,11 @@ if msgs && msgs[0]
   msgs.each do |message|
 
     puts message.inspect
+    input_filename = JSON.parse(message.body)[:input_filename]
+    uid = init_job(input_filename)
 
     if validate_sqs_message(message)
-
-      init_job(message)
-      input_filename = message[:input_filename]
-      begin_job(uid, input_filename)
-
+      begin_job(input_filename)
     else
       set_job_status(uid, JobStatus::Failed)
     end
