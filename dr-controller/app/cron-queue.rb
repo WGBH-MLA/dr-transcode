@@ -1,6 +1,7 @@
 require 'mysql2'
 require 'aws-sdk-sqs'
 require 'securerandom'
+require 'json'
 
 module JobStatus
   Received = 0
@@ -33,10 +34,13 @@ def init_job(msg)
 
   # unique job id
   uid = SecureRandom.uuid
+  puts uid
   status = JobStatus::Received
-  input_filename = "nothin"
+  puts status
+  input_filename = JSON.parse(msg)[:input_filename]
+  puts input_filename
 
-  resp = @client.query(%(INSERT INTO jobs (uid, status, input_filename) VALUES(#{uid}, #{status}, #{input_filename})))
+  resp = @client.query(%(INSERT INTO jobs (uid, status) VALUES(#{uid}, #{status}, #{input_filename})))
   puts resp.inspect
 end
 
