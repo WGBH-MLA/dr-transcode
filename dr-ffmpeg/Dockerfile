@@ -6,7 +6,7 @@ WORKDIR /root
 
 RUN mkdir -p .aws/
 
-RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y awscli ffmpeg
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y awscli ffmpeg mysql
 
 # for production, leave this out and place by hand
 # ADD aws_credentials /root/.aws/credentials
