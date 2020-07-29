@@ -12,7 +12,7 @@ end
 
 def set_job_status(uid, new_status)
   puts "Setting job status for #{uid} to #{new_status}"
-  puts client.query("UPDATE jobs SET status=#{new_status} WHERE uid=#{uid}")
+  puts client.query("UPDATE jobs SET status=#{new_status} WHERE uid=#{uid}").inspect
 end
 
 def validate_sqs_message(msg)
@@ -49,6 +49,7 @@ resp = sqs.receive_message(queue_url: 'https://sqs.us-east-1.amazonaws.com/12794
 
 # check if its time to LIVE
 msgs = resp.messages
+puts "got messages #{msgs}"
 if msgs && msgs[0]
   msgs.each do |message|
 
@@ -69,7 +70,7 @@ end
 
 # check if its time to DIE
 resp = client.query("select * from jobs where status=#{JobStatus::CompletedWork}")
-puts resp
+puts resp.inspect
 
 
 # CREATE TABLE jobs (uid varchar(255), status int, input_filename varchar(1024));
