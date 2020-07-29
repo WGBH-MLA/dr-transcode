@@ -49,7 +49,7 @@ resp = sqs.receive_message(queue_url: 'https://sqs.us-east-1.amazonaws.com/12794
 
 # check if its time to LIVE
 msgs = resp.messages
-if msgs.present?
+if msgs && msgs[0]
   msgs.each do |message|
 
     puts message.inspect
