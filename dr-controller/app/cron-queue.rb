@@ -10,6 +10,12 @@ module JobStatus
   Failed = 4
 end
 
+# load db..
+client = Mysql2::Client.new(host: "mysql", username: "root", database: "drtranscode", password: "", port: 3306)
+#  sqs client
+sqs = Aws::SQS::Client.new(region: 'us-east-1')
+
+
 def set_job_status(uid, new_status)
   puts "Setting job status for #{uid} to #{new_status}"
   puts client.query("UPDATE jobs SET status=#{new_status} WHERE uid=#{uid}").inspect
@@ -42,9 +48,6 @@ def begin_job(uid, input_filename)
   set_job_status(uid, JobStatus::Working)
 end
 
-# load db..
-client = Mysql2::Client.new(host: "mysql", username: "root", database: "drtranscode", password: "", port: 3306)
-sqs = Aws::SQS::Client.new(region: 'us-east-1')
 resp = sqs.receive_message(queue_url: 'https://sqs.us-east-1.amazonaws.com/127946490116/dr-transcode-queue', max_number_of_messages: 10)
 
 # check if its time to LIVE
