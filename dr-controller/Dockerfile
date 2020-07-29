@@ -9,4 +9,4 @@ ADD app/ app/
 WORKDIR /root/app/
 RUN bundle install
 
-CMD bundle exec queue.rb
+# CMD bundle exec queue.rb
