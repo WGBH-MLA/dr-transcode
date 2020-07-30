@@ -114,8 +114,9 @@ if msgs && msgs[0]
   msgs.each do |message|
 
     puts message.inspect
-    input_filepath = JSON.parse(message.body)[:input_filepath]
+    input_filepath = JSON.parse(message.body)["input_filepath"]
     puts "Here we go"
+    puts JSON.parse(message.body).keys
     puts message.body
     puts input_filepath
     uid = init_job(input_filepath)
