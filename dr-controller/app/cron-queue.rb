@@ -25,10 +25,9 @@ end
 
 def validate_sqs_message(msg)
   # check not already received
-  input_filename = JSON.parse(msg.body)[:input_filename]
-  resp = @client.query("SELECT * FROM jobs where input_filename=?", input_filename)
+  # input_filename = JSON.parse(msg.body)[:input_filepath]
+  # resp = @client.query("SELECT * FROM jobs where input_filename=?", input_filename)
   # check that file exists
-  ``
   # check that file not too big
   true
 end
