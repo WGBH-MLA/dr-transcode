@@ -37,7 +37,7 @@ def init_job(input_filepath)
   # chck if job already started..
   # return if already found
   uid = SecureRandom.uuid
-  query = %(INSERT INTO jobs (uid, status, input_filename) VALUES("#{uid}", #{JobStatus::Received}, "#{input_filename}"))
+  query = %(INSERT INTO jobs (uid, status, input_filepath) VALUES("#{uid}", #{JobStatus::Received}, "#{input_filepath}"))
   puts query
   resp = @client.query(query)
   return uid
@@ -47,10 +47,9 @@ def begin_job(uid)
   # start the ffmpeg job
   # run kubectl command..
   job = @client.query("SELECT * FROM jobs WHERE id")
-
-  msgbody = JSON.parse(message.body)
-  return false unless msgbody && msgbody[:input_filepath]
-  filepath = msgbody[:input_filepath]
+  puts job.inspect
+  
+  filepath = job.something
 
   input_filepath = Pathname.new(filepath)
   input_folder = input_filepath.dirname
@@ -116,12 +115,11 @@ if msgs && msgs[0]
   msgs.each do |message|
 
     puts message.inspect
-    input_filepath = JSON.parse(message.body)[:input_filename]
-    input_filename = Pathname.new(input_filepath).basename
-    uid = init_job(input_filepath, input_filename)
+    input_filepath = JSON.parse(message.body)[:input_filepath]
+    uid = init_job(input_filepath)
 
     if validate_sqs_message(message)
-      begin_job(input_filename)
+      begin_job(uid)
     else
       set_job_status(uid, JobStatus::Failed)
     end
@@ -134,4 +132,4 @@ resp = @client.query("SELECT * FROM jobs WHERE status=#{JobStatus::CompletedWork
 puts resp.inspect
 
 
-# CREATE TABLE jobs (uid varchar(255), status int, input_filename varchar(1024), input_filepath varchar(1024));
+# CREATE TABLE jobs (uid varchar(255), status int, input_filepath varchar(1024));
