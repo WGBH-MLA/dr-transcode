@@ -115,6 +115,9 @@ if msgs && msgs[0]
 
     puts message.inspect
     input_filepath = JSON.parse(message.body)[:input_filepath]
+    puts "Here we go"
+    puts message.body
+    puts input_filepath
     uid = init_job(input_filepath)
 
     if validate_sqs_message(message)
