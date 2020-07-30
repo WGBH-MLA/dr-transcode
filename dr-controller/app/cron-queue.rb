@@ -45,7 +45,7 @@ end
 def begin_job(uid)
   # start the ffmpeg job
   # run kubectl command..
-  job = @client.query("SELECT * FROM jobs WHERE id")
+  job = @client.query("SELECT * FROM jobs WHERE uid")
   puts job.inspect
   
   filepath = job.something
@@ -128,6 +128,7 @@ end
 
 # check if its time to DIE
 resp = @client.query("SELECT * FROM jobs WHERE status=#{JobStatus::CompletedWork}")
+puts "Check MYSQL at end"
 puts resp.inspect
 
 
