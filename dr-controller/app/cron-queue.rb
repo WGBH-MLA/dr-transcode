@@ -117,10 +117,11 @@ if msgs && msgs[0]
   msgs.each do |message|
 
     input_filepath = JSON.parse(message.body)["input_filepath"]
-    puts "Here we go initting job"
-    uid = init_job(input_filepath)
 
     if validate_sqs_message(message)
+
+      puts "Here we go initting job"
+      uid = init_job(input_filepath)
       begin_job(uid)
 
       puts "Deleting processed message #{message.receipt_handle}"
