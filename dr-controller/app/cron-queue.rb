@@ -138,7 +138,8 @@ jobs = @client.query("SELECT * FROM jobs WHERE status=#{JobStatus::CompletedWork
 puts "Check MYSQL at end"
 jobs.each do |job|
   puts "Found finished job #{job.inspect}, killing pod #{job["uid"]}"
-  puts `kubectl delete pods dr-ffmpeg-#{uid}`
+  # delete the corresponding pod, work is done
+  puts `kubectl delete pod dr-ffmpeg-#{uid}`
 end
 
 
