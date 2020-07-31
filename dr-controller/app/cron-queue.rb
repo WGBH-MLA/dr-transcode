@@ -20,13 +20,14 @@ end
 
 def set_job_status(uid, new_status)
   puts "Setting job status for #{uid} to #{new_status}"
-  puts client.query("UPDATE jobs SET status=#{new_status} WHERE uid=#{uid}").inspect
+  @client.query(%(UPDATE jobs SET status=#{new_status} WHERE uid="#{uid}"))
 end
 
 def validate_sqs_message(msg)
   # check not already received
-  # input_filename = JSON.parse(msg.body)[:input_filepath]
-  # resp = @client.query("SELECT * FROM jobs where input_filename=?", input_filename)
+  input_filepath = JSON.parse(msg.body)["input_filepath"]
+  results = @client.query(%(SELECT * FROM jobs where input_filepath="#{input_filepath}"))
+  return false unless results.count == 0
   # check that file exists
   # check that file not too big
   true
@@ -45,15 +46,15 @@ end
 def begin_job(uid)
   # start the ffmpeg job
   # run kubectl command..
-  job = @client.query("SELECT * FROM jobs WHERE uid")
+  job = @client.query(%(SELECT * FROM jobs WHERE uid="#{uid}")).first
   puts job.inspect
   
-  filepath = job.something
+  filepath = job["input_filepath"]
 
   input_filepath = Pathname.new(filepath)
   input_folder = input_filepath.dirname
   input_filename = input_filepath.basename
-  input_filename_noext = input_filepath.basename.gsub(input_filepath.extname, '')
+  input_filename_noext = input_filepath.basename.to_s.gsub(input_filepath.extname, '')
 
   puts input_filepath
   puts input_folder
@@ -99,7 +100,7 @@ spec:
     f << pod_yml_content
   end
 
-  # `kubectl --kubeconfig /mnt/kubectl-secret apply -f /root/pod.yml`
+  `kubectl --kubeconfig /mnt/kubectl-secret apply -f /root/pod.yml`
 
   puts "I sure would like to start #{uid} for #{input_filename}!"
   set_job_status(uid, JobStatus::Working)
@@ -124,6 +125,7 @@ if msgs && msgs[0]
     if validate_sqs_message(message)
       begin_job(uid)
     else
+      puts "Aw, job failed!"
       set_job_status(uid, JobStatus::Failed)
     end
 
@@ -131,9 +133,11 @@ if msgs && msgs[0]
 end
 
 # check if its time to DIE
-resp = @client.query("SELECT * FROM jobs WHERE status=#{JobStatus::CompletedWork}")
+jobs = @client.query("SELECT * FROM jobs WHERE status=#{JobStatus::CompletedWork}")
 puts "Check MYSQL at end"
-puts resp.inspect
+jobs.each do |job|
+  puts "Found finished job #{job.inspect}"
+end
 
 
 # CREATE TABLE jobs (uid varchar(255), status int, input_filepath varchar(1024));
