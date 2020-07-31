@@ -9,4 +9,4 @@ ADD app/ app/
 WORKDIR /root/app/
 RUN bundle install
 
-CMD bundle exec server.rb
+CMD bundle exec ruby server.rb
