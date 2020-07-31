@@ -27,6 +27,7 @@ def validate_sqs_message(msg)
   # check not already received
   input_filepath = JSON.parse(msg.body)["input_filepath"]
   results = @client.query(%(SELECT * FROM jobs where input_filepath="#{input_filepath}"))
+  puts results.inspect
   return false unless results.count == 0
   # check that file exists
   # check that file not too big
@@ -65,7 +66,7 @@ def begin_job(uid)
 apiVersion: v1
 kind: Pod
 metadata:
-  name: dr-ffmpeg
+  name: dr-ffmpeg-#{uid}
   namespace: dr-transcode
 spec:
   volumes:
@@ -82,6 +83,8 @@ spec:
         name: obstoresecrets
         readOnly: true
       env:
+      - name: DRTRANSCODE_UID
+        value: #{uid}
       - name: DRTRANSCODE_BUCKET
         value: nehdigitization
       - name: DRTRANSCODE_INPUT_KEY
@@ -114,16 +117,15 @@ puts "got messages #{msgs}"
 if msgs && msgs[0]
   msgs.each do |message|
 
-    puts message.inspect
     input_filepath = JSON.parse(message.body)["input_filepath"]
-    puts "Here we go"
-    puts JSON.parse(message.body).keys
-    puts message.body
-    puts input_filepath
+    puts "Here we go initting job"
     uid = init_job(input_filepath)
 
     if validate_sqs_message(message)
       begin_job(uid)
+
+      puts "Deleting processed message #{message.receipt_handle}"
+      @sqs.delete_message({queue_url: 'https://sqs.us-east-1.amazonaws.com/127946490116/dr-transcode-queue', receipt_handle: message.receipt_handle})
     else
       puts "Aw, job failed!"
       set_job_status(uid, JobStatus::Failed)

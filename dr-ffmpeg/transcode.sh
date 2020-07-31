@@ -30,3 +30,5 @@ fi
 
 # # upload output file to s3
 aws --endpoint-url 'http://s3-bos.wgbh.org' s3api put-object --bucket $DRTRANSCODE_BUCKET --key $DRTRANSCODE_OUTPUT_KEY --body ./$DRTRANSCODE_OUTPUT_FILENAME
+
+curl -x http://dr-controller:3000/finish?uid=$DRTRANSCODE_UID
