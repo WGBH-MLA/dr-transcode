@@ -103,9 +103,8 @@ spec:
     f << pod_yml_content
   end
 
-  `kubectl --kubeconfig /mnt/kubectl-secret apply -f /root/pod.yml`
-
   puts "I sure would like to start #{uid} for #{input_filename}!"
+  puts `kubectl --kubeconfig /mnt/kubectl-secret apply -f /root/pod.yml`
   set_job_status(uid, JobStatus::Working)
 end
 
@@ -138,7 +137,8 @@ end
 jobs = @client.query("SELECT * FROM jobs WHERE status=#{JobStatus::CompletedWork}")
 puts "Check MYSQL at end"
 jobs.each do |job|
-  puts "Found finished job #{job.inspect}"
+  puts "Found finished job #{job.inspect}, killing pod #{job["uid"]}"
+  puts `kubectl delete pods dr-ffmpeg-#{uid}`
 end
 
 

@@ -32,4 +32,4 @@ fi
 aws --endpoint-url 'http://s3-bos.wgbh.org' s3api put-object --bucket $DRTRANSCODE_BUCKET --key $DRTRANSCODE_OUTPUT_KEY --body ./$DRTRANSCODE_OUTPUT_FILENAME
 
 # iim done
-curl -x http://dr-controller:3000/finish?status=2&uid=$DRTRANSCODE_UID
+curl -x http://dr-controller:4567/finish?status=2&uid=$DRTRANSCODE_UID
