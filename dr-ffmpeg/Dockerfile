@@ -4,7 +4,9 @@ WORKDIR /root
 
 RUN mkdir -p .aws/
 
-RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -qq -y awscli ffmpeg curl
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install --force-yes  -y1 awscli ffmpeg curl
+
+
 
 ADD transcode.sh transcode.sh 
 RUN chmod +x transcode.sh
