@@ -67,6 +67,7 @@ apiVersion: v1
 kind: Pod
 metadata:
   name: dr-ffmpeg-#{uid}
+  type: dr-ffmpeg
   namespace: dr-transcode
 spec:
   volumes:
@@ -77,7 +78,7 @@ spec:
         secretName: obstoresecrets
   containers:
     - name: dr-ffmpeg
-      image: mla-dockerhub.wgbh.org/dr-ffmpeg:58
+      image: mla-dockerhub.wgbh.org/dr-ffmpeg:59
       volumeMounts:
       - mountPath: /root/.aws
         name: obstoresecrets
@@ -134,14 +135,36 @@ if msgs && msgs[0]
   end
 end
 
-# check if its time to DIE
-jobs = @client.query("SELECT * FROM jobs WHERE status=#{JobStatus::CompletedWork}")
+# check if file Status::WORKING exists on objectstore, mark as completedWork if done...
+# job.each...
+jobs = @client.query("SELECT * FROM jobs WHERE status=#{JobStatus::Working}")
 puts "Check MYSQL at end"
 jobs.each do |job|
-  puts "Found finished job #{job.inspect}, killing pod #{job["uid"]}"
+  puts "Found JS::Working job #{job.inspect}, checking pod #{job["uid"]}"
   # delete the corresponding pod, work is done
-  puts `kubectl delete pod dr-ffmpeg-#{uid}`
+
+  resp = `aws --endpoint-url 'http://s3-bos.wgbh.org' s3api object-exists --bucket nehdigitization --key #{job["input_filepath"]}`
+  puts "Got OBSTORE response #{resp.code}"
+
+  if resp.code == 200
+    
+    puts "File #{job["input_filepath"]} was found on object store - Attemping to delete pod dr-ffmpeg-#{uid}"
+    puts `kubectl delete pod dr-ffmpeg-#{uid}`
+  else
+
+    puts "Job isnt done, keeeeeeeep going!"
+  end
 end
+# remove server rb and curl statement/curl from ffmpeg conntnainer
+
+# check if its time to DIE
+# jobs = @client.query("SELECT * FROM jobs WHERE status=#{JobStatus::CompletedWork}")
+# puts "Check MYSQL at end"
+# jobs.each do |job|
+#   puts "Found finished job #{job.inspect}, killing pod #{job["uid"]}"
+#   # delete the corresponding pod, work is done
+#   puts `kubectl delete pod dr-ffmpeg-#{uid}`
+# end
 
 
 # CREATE TABLE jobs (uid varchar(255), status int, input_filepath varchar(1024));
