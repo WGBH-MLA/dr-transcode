@@ -14,7 +14,14 @@ end
 # load db..
 @client = Mysql2::Client.new(host: "mysql", username: "root", database: "drtranscode", password: "", port: 3306)
 #  sqs client
-@sqs = Aws::SQS::Client.new(region: 'us-east-1')
+# @sqs = Aws::SQS::Client.new(region: 'us-east-1')
+
+# to let aws cli use object store, we cant use default AWS_ACCESS_WHATEVER env variables, because cli prefers those over the /root/.aws/credentials files
+@sqs = Aws::SQS::Client.new(
+  region: 'us-east-1',
+  access_key_id: ENV['SQS_ACCESS_KEY_ID'],
+  secret_access_key: ENV['SQS_SECRET_ACCESS_KEY']
+)
 
 
 def set_job_status(uid, new_status)

@@ -1,6 +1,10 @@
 require 'aws-sdk-sqs'
 puts "Dohh!"
-sqs = Aws::SQS::Client.new(region: 'us-east-1')
+sqs = Aws::SQS::Client.new(
+  region: 'us-east-1',
+  access_key_id: ENV['SQS_ACCESS_KEY_ID'],
+  secret_access_key: ENV['SQS_SECRET_ACCESS_KEY']
+)
 
 puts "Woo-hoo!"
 sqs.send_message({
