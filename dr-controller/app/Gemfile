@@ -6,4 +6,3 @@ gem 'state_machines'
 gem 'state_machines-activerecord'
 
 gem 'mysql2'
-gem 'sinatra'

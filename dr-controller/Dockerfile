@@ -1,5 +1,7 @@
 # FROM ubuntu:latest
 FROM ruby:2.7
+
+# groff is a dependency that screws up awscli install without 'failing' install
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install --force-yes  -y1 groff awscli curl vim
 RUN curl -LO https://storage.googleapis.com/kubernetes-release/release/`curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt`/bin/linux/amd64/kubectl && chmod +x ./kubectl && mv ./kubectl /usr/local/bin/kubectl
 

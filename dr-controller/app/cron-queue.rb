@@ -83,7 +83,7 @@ spec:
         secretName: obstoresecrets
   containers:
     - name: dr-ffmpeg
-      image: mla-dockerhub.wgbh.org/dr-ffmpeg:62
+      image: mla-dockerhub.wgbh.org/dr-ffmpeg:63
       volumeMounts:
       - mountPath: /root/.aws
         name: obstoresecrets
@@ -162,28 +162,18 @@ jobs.each do |job|
   # delete the corresponding pod, work is done
 
   resp = `aws --endpoint-url 'http://s3-bos.wgbh.org' s3api head-object --bucket nehdigitization --key #{job["input_filepath"]}`
-  puts "Got OBSTORE response #{resp.code} for #{job["uid"]}"
+  puts "Got OBSTORE response #{resp} for #{job["uid"]}"
 
-  if resp.code == 200
+  if !resp.empty?
+    # head-object returns "" in this context when 404, otherwise gives a zesty pan-fried json message as a String
     
-    puts "File #{job["input_filepath"]} was found on object store - Attemping to delete pod dr-ffmpeg-#{uid}"
-    puts `kubectl delete pod dr-ffmpeg-#{uid}`
-    set_job_status(uid, JobStatus::CompletedWork)
+    puts "File #{job["input_filepath"]} was found on object store - Attemping to delete pod dr-ffmpeg-#{job["uid"]}"
+    puts `kubectl --kubeconfig=/mnt/kubectl-secret delete pod dr-ffmpeg-#{job["uid"]}`
+    set_job_status(job["uid"], JobStatus::CompletedWork)
   else
 
     puts "Job #{job["uid"]} isnt done, keeeeeeeep going!"
   end
 end
-# remove server rb and curl statement/curl from ffmpeg conntnainer
-
-# check if its time to DIE
-# jobs = @client.query("SELECT * FROM jobs WHERE status=#{JobStatus::CompletedWork}")
-# puts "Check MYSQL at end"
-# jobs.each do |job|
-#   puts "Found finished job #{job.inspect}, killing pod #{job["uid"]}"
-#   # delete the corresponding pod, work is done
-#   puts `kubectl delete pod dr-ffmpeg-#{uid}`
-# end
-
 
 # CREATE TABLE jobs (uid varchar(255), status int, input_filepath varchar(1024));
