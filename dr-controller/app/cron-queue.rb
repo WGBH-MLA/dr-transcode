@@ -23,6 +23,11 @@ end
   secret_access_key: ENV['SQS_SECRET_ACCESS_KEY']
 )
 
+def get_output_filepath(input_filepath)
+  fp = Pathname.new(input_filepath)
+  # audio and video files are both wrapped in mp4 containers for avalon purposes
+  fp.sub_ext('.mp4')
+end
 
 def set_job_status(uid, new_status)
   puts "Setting job status for #{uid} to #{new_status}"
@@ -56,17 +61,11 @@ def begin_job(uid)
   job = @client.query(%(SELECT * FROM jobs WHERE uid="#{uid}")).first
   puts job.inspect
   
-  filepath = job["input_filepath"]
+  input_filepath = job["input_filepath"]
 
-  input_filepath = Pathname.new(filepath)
-  input_folder = input_filepath.dirname
-  input_filename = input_filepath.basename
-  input_filename_noext = input_filepath.basename.to_s.gsub(input_filepath.extname, '')
-
-  puts input_filepath
-  puts input_folder
-  puts input_filename
-  puts input_filename_noext
+  fp = Pathname.new(input_filepath)
+  input_folder = fp.dirname
+  input_filename = fp.basename
 
   pod_yml_content = %{
 apiVersion: v1
@@ -83,7 +82,7 @@ spec:
         secretName: obstoresecrets
   containers:
     - name: dr-ffmpeg
-      image: mla-dockerhub.wgbh.org/dr-ffmpeg:63
+      image: mla-dockerhub.wgbh.org/dr-ffmpeg:64
       volumeMounts:
       - mountPath: /root/.aws
         name: obstoresecrets
@@ -98,9 +97,9 @@ spec:
       - name: DRTRANSCODE_INPUT_FILENAME
         value: #{ input_filename }
       - name: DRTRANSCODE_OUTPUT_KEY
-        value: #{input_folder}/#{input_filename_noext}.mp4
+        value: #{ get_output_filepath(input_filepath) }
       - name: DRTRANSCODE_OUTPUT_FILENAME
-        value: #{input_filename_noext}.mp4
+        value: #{ get_output_filepath(input_filepath).basename }
   imagePullSecrets:
       - name: mla-dockerhub
   }
@@ -159,15 +158,17 @@ jobs = @client.query("SELECT * FROM jobs WHERE status=#{JobStatus::Working}")
 puts "Found #{jobs.count} jobs with JS::Working"
 jobs.each do |job|
   puts "Found JS::Working job #{job.inspect}, checking pod #{job["uid"]}"
+  
   # delete the corresponding pod, work is done
-
-  resp = `aws --endpoint-url 'http://s3-bos.wgbh.org' s3api head-object --bucket nehdigitization --key #{job["input_filepath"]}`
+  output_filepath = get_output_filepath(job["input_filepath"])
+  puts "Now searching for output_filepath #{output_filepath}"
+  resp = `aws --endpoint-url 'http://s3-bos.wgbh.org' s3api head-object --bucket nehdigitization --key #{output_filepath}`
   puts "Got OBSTORE response #{resp} for #{job["uid"]}"
 
   if !resp.empty?
     # head-object returns "" in this context when 404, otherwise gives a zesty pan-fried json message as a String
     
-    puts "File #{job["input_filepath"]} was found on object store - Attemping to delete pod dr-ffmpeg-#{job["uid"]}"
+    puts "File #{output_filepath} was found on object store - Attemping to delete pod dr-ffmpeg-#{job["uid"]}"
     puts `kubectl --kubeconfig=/mnt/kubectl-secret delete pod dr-ffmpeg-#{job["uid"]}`
     set_job_status(job["uid"], JobStatus::CompletedWork)
   else
