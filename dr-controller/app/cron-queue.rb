@@ -76,7 +76,7 @@ spec:
         secretName: obstoresecrets
   containers:
     - name: dr-ffmpeg
-      image: mla-dockerhub.wgbh.org/dr-ffmpeg:60
+      image: mla-dockerhub.wgbh.org/dr-ffmpeg:61
       volumeMounts:
       - mountPath: /root/.aws
         name: obstoresecrets
@@ -154,7 +154,7 @@ jobs.each do |job|
   puts "Found JS::Working job #{job.inspect}, checking pod #{job["uid"]}"
   # delete the corresponding pod, work is done
 
-  resp = `aws --endpoint-url 'http://s3-bos.wgbh.org' s3api object-exists --bucket nehdigitization --key #{job["input_filepath"]}`
+  resp = `aws --endpoint-url 'http://s3-bos.wgbh.org' s3api head-object --bucket nehdigitization --key #{job["input_filepath"]}`
   puts "Got OBSTORE response #{resp.code} for #{job["uid"]}"
 
   if resp.code == 200
