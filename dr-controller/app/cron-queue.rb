@@ -8,8 +8,7 @@ module JobStatus
   Received = 0
   Working = 1
   CompletedWork = 2
-  Retired = 3
-  Failed = 4
+  Failed = 3
 end
 
 # load db..
@@ -67,7 +66,6 @@ apiVersion: v1
 kind: Pod
 metadata:
   name: dr-ffmpeg-#{uid}
-  type: dr-ffmpeg
   namespace: dr-transcode
 spec:
   volumes:
@@ -78,7 +76,7 @@ spec:
         secretName: obstoresecrets
   containers:
     - name: dr-ffmpeg
-      image: mla-dockerhub.wgbh.org/dr-ffmpeg:59
+      image: mla-dockerhub.wgbh.org/dr-ffmpeg:60
       volumeMounts:
       - mountPath: /root/.aws
         name: obstoresecrets
@@ -113,7 +111,7 @@ resp = @sqs.receive_message(queue_url: 'https://sqs.us-east-1.amazonaws.com/1279
 
 # check if its time to LIVE
 msgs = resp.messages
-puts "got messages #{msgs}"
+puts "got SQS messages #{msgs}"
 if msgs && msgs[0]
   msgs.each do |message|
 
@@ -123,7 +121,6 @@ if msgs && msgs[0]
 
       puts "Here we go initting job"
       uid = init_job(input_filepath)
-      begin_job(uid)
 
       puts "Deleting processed message #{message.receipt_handle}"
       @sqs.delete_message({queue_url: 'https://sqs.us-east-1.amazonaws.com/127946490116/dr-transcode-queue', receipt_handle: message.receipt_handle})
@@ -135,24 +132,39 @@ if msgs && msgs[0]
   end
 end
 
+# actually start jobs that we initted above
+jobs = @client.query("SELECT * FROM jobs WHERE status=#{JobStatus::Received}")
+puts "Found #{jobs.count} jobs with JS::Received"
+jobs.each do |job|
+
+  number_ffmpeg_pods = `kubectl --kubeconfig=/mnt/kubectl-secret get pods | awk '/dr-ffmpeg/ {print $1;exit}' | wc -l`
+  puts "There are #{number_ffmpeg_pods} running right now..."
+  if number_ffmpeg_pods.to_i < 10
+
+    puts "Ooh yeah - I'm starting #{job["uid"]}!"
+    begin_job(job["uid"])
+  end
+end
+
 # check if file Status::WORKING exists on objectstore, mark as completedWork if done...
 # job.each...
 jobs = @client.query("SELECT * FROM jobs WHERE status=#{JobStatus::Working}")
-puts "Check MYSQL at end"
+puts "Found #{jobs.count} jobs with JS::Working"
 jobs.each do |job|
   puts "Found JS::Working job #{job.inspect}, checking pod #{job["uid"]}"
   # delete the corresponding pod, work is done
 
   resp = `aws --endpoint-url 'http://s3-bos.wgbh.org' s3api object-exists --bucket nehdigitization --key #{job["input_filepath"]}`
-  puts "Got OBSTORE response #{resp.code}"
+  puts "Got OBSTORE response #{resp.code} for #{job["uid"]}"
 
   if resp.code == 200
     
     puts "File #{job["input_filepath"]} was found on object store - Attemping to delete pod dr-ffmpeg-#{uid}"
     puts `kubectl delete pod dr-ffmpeg-#{uid}`
+    set_job_status(uid, JobStatus::CompletedWork)
   else
 
-    puts "Job isnt done, keeeeeeeep going!"
+    puts "Job #{job["uid"]} isnt done, keeeeeeeep going!"
   end
 end
 # remove server rb and curl statement/curl from ffmpeg conntnainer
