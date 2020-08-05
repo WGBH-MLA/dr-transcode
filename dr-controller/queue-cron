@@ -1,0 +1,1 @@
+* * * * * cd /root/app && bundle exec ruby cron-queue.rb >> /var/log/queue-cron.log 2>&1
