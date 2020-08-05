@@ -82,7 +82,7 @@ spec:
         secretName: obstoresecrets
   containers:
     - name: dr-ffmpeg
-      image: mla-dockerhub.wgbh.org/dr-ffmpeg:69
+      image: mla-dockerhub.wgbh.org/dr-ffmpeg:70
       volumeMounts:
       - mountPath: /root/.aws
         name: obstoresecrets
