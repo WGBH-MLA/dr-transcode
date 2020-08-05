@@ -13,6 +13,6 @@ RUN touch /var/log/queue-cron.log
 
 ADD app/ app/
 WORKDIR /root/app/
-RUN bundle install
+# RUN bundle install
 
-CMD cron && tail -f /var/log/queue-cron.log
+CMD bundle install && cron && tail -f /var/log/queue-cron.log
