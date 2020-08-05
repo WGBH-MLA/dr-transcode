@@ -15,4 +15,4 @@ ADD app/ app/
 WORKDIR /root/app/
 RUN bundle install
 
-CMD cron && tail -f /var/log/cron.log
+CMD cron && tail -f /var/log/queue-cron.log
