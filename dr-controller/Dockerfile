@@ -1,4 +1,3 @@
-# FROM ubuntu:latest
 FROM ruby:2.7
 
 # groff is a dependency that screws up awscli install without 'failing' install
@@ -13,6 +12,12 @@ RUN touch /var/log/queue-cron.log
 
 ADD app/ app/
 WORKDIR /root/app/
-# RUN bundle install
+RUN gem install bundler
+RUN bundle install
 
-CMD bundle install && cron && tail -f /var/log/queue-cron.log
+# bundler recommends using these if you havin trubb
+# ENV GEM_HOME="/usr/local/bundle"
+# ENV PATH $GEM_HOME/bin:$GEM_HOME/gems/bin:$PATH
+
+
+CMD cron && tail -f /var/log/queue-cron.log
