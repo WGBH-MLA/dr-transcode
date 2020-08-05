@@ -1,1 +1,1 @@
-* * * * * bash -lc "cd /root/app && bundle exec ruby cron-queue.rb >> /var/log/queue-cron.log 2>&1"
+* * * * * bash -lc "cd /root/app && bundle install && bundle exec ruby cron-queue.rb >> /var/log/queue-cron.log 2>&1"

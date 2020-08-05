@@ -19,8 +19,9 @@ end
 # to let aws cli use object store, we cant use default AWS_ACCESS_WHATEVER env variables, because cli prefers those over the /root/.aws/credentials files
 @sqs = Aws::SQS::Client.new(
   region: 'us-east-1',
-  access_key_id: ENV['SQS_ACCESS_KEY_ID'],
-  secret_access_key: ENV['SQS_SECRET_ACCESS_KEY']
+  # reading these in from files because ENV variables are not available in cronjob, and getting them piped into cron login sessions is apparently impossible with however they are injected into the container in rancher 
+  access_key_id: File.read('/root/sqs/sqs_a'),
+  secret_access_key: File.read('/root/sqs/sqs_s')
 )
 
 def get_output_filepath(input_filepath)
@@ -82,7 +83,7 @@ spec:
         secretName: obstoresecrets
   containers:
     - name: dr-ffmpeg
-      image: mla-dockerhub.wgbh.org/dr-ffmpeg:72
+      image: mla-dockerhub.wgbh.org/dr-ffmpeg:73
       volumeMounts:
       - mountPath: /root/.aws
         name: obstoresecrets
