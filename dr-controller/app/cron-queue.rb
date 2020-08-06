@@ -57,8 +57,6 @@ def init_job(input_filepath)
 end
 
 def begin_job(uid)
-  # start the ffmpeg job
-  # run kubectl command..
   job = @client.query(%(SELECT * FROM jobs WHERE uid="#{uid}")).first
   puts job.inspect
   
@@ -110,7 +108,7 @@ spec:
   end
 
   puts "I sure would like to start #{uid} for #{input_filename}!"
-  puts `kubectl --kubeconfig /mnt/kubectl-secret apply -f /root/pod.yml`
+  puts `kubectl --kubeconfig /mnt/kubectl-secret --namespace=dr-transcode apply -f /root/pod.yml`
   set_job_status(uid, JobStatus::Working)
 end
 
@@ -144,7 +142,7 @@ jobs = @client.query("SELECT * FROM jobs WHERE status=#{JobStatus::Received}")
 puts "Found #{jobs.count} jobs with JS::Received"
 jobs.each do |job|
 
-  number_ffmpeg_pods = `kubectl --kubeconfig=/mnt/kubectl-secret get pods | awk '/dr-ffmpeg/ {print $1;exit}' | wc -l`
+  number_ffmpeg_pods = `kubectl --kubeconfig=/mnt/kubectl-secret --namespace=dr-transcode get pods | awk '/dr-ffmpeg/ {print $1;exit}' | wc -l`
   puts "There are #{number_ffmpeg_pods} running right now..."
   if number_ffmpeg_pods.to_i < 10
 
@@ -170,7 +168,7 @@ jobs.each do |job|
     # head-object returns "" in this context when 404, otherwise gives a zesty pan-fried json message as a String
     
     puts "File #{output_filepath} was found on object store - Attemping to delete pod dr-ffmpeg-#{job["uid"]}"
-    puts `kubectl --kubeconfig=/mnt/kubectl-secret delete pod dr-ffmpeg-#{job["uid"]}`
+    puts `kubectl --kubeconfig=/mnt/kubectl-secret --namespace=dr-transcode delete pod dr-ffmpeg-#{job["uid"]}`  
     set_job_status(job["uid"], JobStatus::CompletedWork)
   else
 
