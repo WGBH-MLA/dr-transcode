@@ -13,10 +13,9 @@ end
 
 # load db..
 @client = Mysql2::Client.new(host: "mysql", username: "root", database: "drtranscode", password: "", port: 3306)
-#  sqs client
-# @sqs = Aws::SQS::Client.new(region: 'us-east-1')
 
 # to let aws cli use object store, we cant use default AWS_ACCESS_WHATEVER env variables, because cli prefers those over the /root/.aws/credentials files
+#  sqs client
 @sqs = Aws::SQS::Client.new(
   region: 'us-east-1',
   # reading these in from files because ENV variables are not available in cronjob, and getting them piped into cron login sessions is apparently impossible with however they are injected into the container in rancher 
@@ -81,7 +80,7 @@ spec:
         secretName: obstoresecrets
   containers:
     - name: dr-ffmpeg
-      image: mla-dockerhub.wgbh.org/dr-ffmpeg:73
+      image: mla-dockerhub.wgbh.org/dr-ffmpeg:74
       volumeMounts:
       - mountPath: /root/.aws
         name: obstoresecrets
@@ -106,6 +105,10 @@ spec:
   File.open('/root/pod.yml', 'w+') do |f|
     f << pod_yml_content
   end
+
+  puts "YEEEE HAWWW"
+  number_ffmpeg_pods = `kubectl --kubeconfig=/mnt/kubectl-secret --namespace=dr-transcode get pods | awk '/dr-ffmpeg/ {print $1;exit}' | wc -l`
+  puts number_ffmpeg_pods
 
   puts "I sure would like to start #{uid} for #{input_filename}!"
   puts `kubectl --kubeconfig /mnt/kubectl-secret --namespace=dr-transcode apply -f /root/pod.yml`
