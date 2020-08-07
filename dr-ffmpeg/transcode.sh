@@ -40,3 +40,6 @@ fi
 
 # # upload output file to s3
 aws --endpoint-url 'http://s3-bos.wgbh.org' s3api put-object --bucket $DRTRANSCODE_BUCKET --key $DRTRANSCODE_OUTPUT_KEY --body ./$DRTRANSCODE_OUTPUT_FILENAME
+
+# add public acl to de file
+aws --endpoint-url 'http://s3-bos.wgbh.org' s3api put-object-acl --bucket $DRTRANSCODE_BUCKET --key $DRTRANSCODE_OUTPUT_KEY --acl public-read

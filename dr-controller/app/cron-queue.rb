@@ -1,3 +1,4 @@
+# IMPORTANT :: For right now, you have to run crontab -e .. :wq on controller in order for crontab to take effect - then we get 2 work
 require 'mysql2'
 require 'aws-sdk-sqs'
 require 'securerandom'
