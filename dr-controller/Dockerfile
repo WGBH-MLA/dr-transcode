@@ -5,16 +5,9 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install --force-yes
 RUN curl -LO https://storage.googleapis.com/kubernetes-release/release/`curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt`/bin/linux/amd64/kubectl && chmod +x ./kubectl && mv ./kubectl /usr/local/bin/kubectl
 
 WORKDIR /root
-
-# trying system cron
-# COPY queue-cron /etc/cron.d/queue-cron
-# RUN chmod 0644 /etc/cron.d/queue-cron
-# RUN crontab /etc/cron.d/queue-cron
-
-COPY queue-cron /etc/crontab
-RUN chmod 0644 /etc/crontab
-
-
+COPY queue-cron /root/queue-cron
+RUN chmod 0644 /root/queue-cron
+RUN crontab /root/queue-cron
 RUN touch /var/log/queue-cron.log
 
 ADD app/ app/
@@ -25,6 +18,4 @@ RUN bundle install
 # bundler recommends using these if you havin trubb
 # ENV GEM_HOME="/usr/local/bundle"
 # ENV PATH $GEM_HOME/bin:$GEM_HOME/gems/bin:$PATH
-
-
-CMD cron && tail -f /var/log/queue-cron.log
+CMD /usr/sbin/cron -f && tail -f /var/log/queue-cron.log
