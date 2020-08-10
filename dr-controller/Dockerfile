@@ -12,6 +12,7 @@ RUN touch /var/log/queue-cron.log
 
 ADD app/ app/
 WORKDIR /root/app/
+RUN chmod +x /root/app/check_number_pods.sh
 RUN gem install bundler
 RUN bundle install
 

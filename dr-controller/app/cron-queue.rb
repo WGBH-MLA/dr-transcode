@@ -30,20 +30,48 @@ def get_output_filepath(input_filepath)
   fp.sub_ext('.mp4')
 end
 
-def set_job_status(uid, new_status)
+def set_job_status(uid, new_status, fail_reason=nil)
   puts "Setting job status for #{uid} to #{new_status}"
-  @client.query(%(UPDATE jobs SET status=#{new_status} WHERE uid="#{uid}"))
+  if fail_reason
+    # if we passed in a failure reason, save to db
+    @client.query(%(UPDATE jobs SET status=#{new_status}, fail_reason="#{fail_reason}" WHERE uid="#{uid}"))
+  else
+    @client.query(%(UPDATE jobs SET status=#{new_status} WHERE uid="#{uid}"))
+  end
 end
 
-def validate_sqs_message(msg)
-  # check not already received
-  input_filepath = JSON.parse(msg.body)["input_filepath"]
-  results = @client.query(%(SELECT * FROM jobs where input_filepath="#{input_filepath}"))
+def validate_for_init(input_filepath)
+  # check for jobs with SAME input key that DID NOT fail
+  results = @client.query(%(SELECT * FROM jobs WHERE input_filepath="#{input_filepath} AND status!=3"))
   puts results.inspect
-  return false unless results.count == 0
-  # check that file exists
+
+  # if theres no redundant job for this key, we're good to init the job
+  results.count == 0
+end
+
+def validate_for_jobstart(uid, input_filepath)
+
+  output = get_file_info(input_filepath)
+
+  # check that input file exists
+  unless check_file_exists(output)
+    set_job_status(uid, JobStatus::Failed, "Input file #{input_filepath} was not found on Object Store...")
+    return false
+  end
+
   # check that file not too big
+  # TODO here we will read output as json... check ContentLength key for size bigness check
+
   true
+end
+
+def get_file_info(key)
+ `aws --endpoint-url 'http://s3-bos.wgbh.org' s3api head-object --bucket nehdigitization --key #{key}`
+end
+
+def check_file_exists(key)
+  # ruby return value is "" for an s3 404
+  output && output != ""
 end
 
 def init_job(input_filepath)
@@ -81,7 +109,7 @@ spec:
         secretName: obstoresecrets
   containers:
     - name: dr-ffmpeg
-      image: mla-dockerhub.wgbh.org/dr-ffmpeg:78
+      image: mla-dockerhub.wgbh.org/dr-ffmpeg:79
       volumeMounts:
       - mountPath: /root/.aws
         name: obstoresecrets
@@ -127,27 +155,41 @@ if msgs && msgs[0]
 
     input_filepath = JSON.parse(message.body)["input_filepath"]
 
-    if validate_sqs_message(message)
-
+    if validate_for_init(input_filepath)
       puts "Here we go initting job"
       uid = init_job(input_filepath)
 
-      puts "Deleting processed message #{message.receipt_handle}"
-      @sqs.delete_message({queue_url: 'https://sqs.us-east-1.amazonaws.com/127946490116/dr-transcode-queue', receipt_handle: message.receipt_handle})
-    else
-      puts "Aw, job failed!"
-      set_job_status(uid, JobStatus::Failed)
-    end
+      if validate_for_jobstart(uid, input_filepath)
 
+        puts "Deleting processed SQS message #{message.receipt_handle}"
+        @sqs.delete_message({queue_url: 'https://sqs.us-east-1.amazonaws.com/127946490116/dr-transcode-queue', receipt_handle: message.receipt_handle})
+      else
+
+        puts "Failed to begin job for uid #{uid}."
+      end
+
+    else
+      puts "Failed to initialize job for #{input_filepath} - nonfailed job(s) exist for this path."
+    end
+    
   end
 end
 
-# actually start jobs that we initted above
+# actually start jobs that we successfully initted above
 jobs = @client.query("SELECT * FROM jobs WHERE status=#{JobStatus::Received}")
 puts "Found #{jobs.count} jobs with JS::Received"
 jobs.each do |job|
 
-  number_ffmpeg_pods = `kubectl --kubeconfig=/mnt/kubectl-secret --namespace=dr-transcode get pods | grep '^dr-ffmpeg' | wc -l`
+  # this works, but sometimes gets 'TLS handshake error', yielding '0 pods running'
+  # number_ffmpeg_pods = `kubectl --kubeconfig=/mnt/kubectl-secret --namespace=dr-transcode get pods | grep '^dr-ffmpeg' | wc -l`
+  # this badboy protects against that
+  number_ffmpeg_pods = `/root/app/check_number_pods.sh`
+
+  if number_ffmpeg_pods.to_i == -1
+    puts "Failed to grab number of pods due to TLS error... skipping starting job on #{job["uid"]} this time around"
+    next
+  end
+
   puts "There are #{number_ffmpeg_pods} running right now..."
   if number_ffmpeg_pods.to_i < 10
 
@@ -181,4 +223,4 @@ jobs.each do |job|
   end
 end
 
-# CREATE TABLE jobs (uid varchar(255), status int, input_filepath varchar(1024));
+# CREATE TABLE jobs (uid varchar(255), status int, input_filepath varchar(1024), fail_reason varchar(1024));
