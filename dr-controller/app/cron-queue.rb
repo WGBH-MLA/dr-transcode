@@ -109,7 +109,7 @@ spec:
         secretName: obstoresecrets
   containers:
     - name: dr-ffmpeg
-      image: mla-dockerhub.wgbh.org/dr-ffmpeg:80
+      image: mla-dockerhub.wgbh.org/dr-ffmpeg:81
       volumeMounts:
       - mountPath: /root/.aws
         name: obstoresecrets
@@ -160,17 +160,15 @@ if msgs && msgs[0]
       uid = init_job(input_filepath)
 
       if validate_for_jobstart(uid, input_filepath)
-
-        puts "Deleting processed SQS message #{message.receipt_handle}"
-        @sqs.delete_message({queue_url: 'https://sqs.us-east-1.amazonaws.com/127946490116/dr-transcode-queue', receipt_handle: message.receipt_handle})
-      else
-
-        puts "Failed to begin job for uid #{uid}."
+        puts "Succeeded validation for job #{uid} key #{input_filepath} - job will begin shortly."
       end
 
     else
       puts "Failed to initialize job for #{input_filepath} - nonfailed job(s) exist for this path."
     end
+  
+    puts "Deleting processed SQS message #{message.receipt_handle}"
+    @sqs.delete_message({queue_url: 'https://sqs.us-east-1.amazonaws.com/127946490116/dr-transcode-queue', receipt_handle: message.receipt_handle})
     
   end
 end
