@@ -81,7 +81,7 @@ spec:
         secretName: obstoresecrets
   containers:
     - name: dr-ffmpeg
-      image: mla-dockerhub.wgbh.org/dr-ffmpeg:77
+      image: mla-dockerhub.wgbh.org/dr-ffmpeg:78
       volumeMounts:
       - mountPath: /root/.aws
         name: obstoresecrets
@@ -107,9 +107,10 @@ spec:
     f << pod_yml_content
   end
 
-  puts "YEEEE HAWWW"
-  number_ffmpeg_pods = `kubectl --kubeconfig=/mnt/kubectl-secret --namespace=dr-transcode get pods | awk '/dr-ffmpeg/ {print $1;exit}' | wc -l`
-  puts number_ffmpeg_pods
+  # this was only a test
+  # puts "YEEEE HAWWW"
+  # number_ffmpeg_pods = `kubectl --kubeconfig=/mnt/kubectl-secret --namespace=dr-transcode get pods | awk '/dr-ffmpeg/ {print $1;exit}' | wc -l`
+  # puts number_ffmpeg_pods
 
   puts "I sure would like to start #{uid} for #{input_filename}!"
   puts `kubectl --kubeconfig /mnt/kubectl-secret --namespace=dr-transcode apply -f /root/pod.yml`
@@ -146,7 +147,7 @@ jobs = @client.query("SELECT * FROM jobs WHERE status=#{JobStatus::Received}")
 puts "Found #{jobs.count} jobs with JS::Received"
 jobs.each do |job|
 
-  number_ffmpeg_pods = `kubectl --kubeconfig=/mnt/kubectl-secret --namespace=dr-transcode get pods | awk '/dr-ffmpeg/ {print $1;exit}' | wc -l`
+  number_ffmpeg_pods = `kubectl --kubeconfig=/mnt/kubectl-secret --namespace=dr-transcode get pods | grep '^dr-ffmpeg' | wc -l`
   puts "There are #{number_ffmpeg_pods} running right now..."
   if number_ffmpeg_pods.to_i < 10
 
