@@ -69,9 +69,9 @@ def get_file_info(key)
  `aws --endpoint-url 'http://s3-bos.wgbh.org' s3api head-object --bucket nehdigitization --key #{key}`
 end
 
-def check_file_exists(key)
+def check_file_exists(s3_output)
   # ruby return value is "" for an s3 404
-  output && output != ""
+  s3_output && s3_output != ""
 end
 
 def init_job(input_filepath)
@@ -109,7 +109,7 @@ spec:
         secretName: obstoresecrets
   containers:
     - name: dr-ffmpeg
-      image: mla-dockerhub.wgbh.org/dr-ffmpeg:79
+      image: mla-dockerhub.wgbh.org/dr-ffmpeg:80
       volumeMounts:
       - mountPath: /root/.aws
         name: obstoresecrets
