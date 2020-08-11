@@ -101,6 +101,19 @@ metadata:
   name: dr-ffmpeg-#{uid}
   namespace: dr-transcode
 spec:
+  app: dr-ffmpeg
+  affinity:
+    podAntiAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+      - podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+            - key: app
+              operator: In
+              values:
+              - dr-ffmpeg
+          topologyKey: kubernetes.io/hostname
+        weight: 1
   volumes:
     - name: obstoresecrets
       secret:
@@ -109,7 +122,7 @@ spec:
         secretName: obstoresecrets
   containers:
     - name: dr-ffmpeg
-      image: mla-dockerhub.wgbh.org/dr-ffmpeg:81
+      image: mla-dockerhub.wgbh.org/dr-ffmpeg:82
       volumeMounts:
       - mountPath: /root/.aws
         name: obstoresecrets
@@ -189,7 +202,7 @@ jobs.each do |job|
   end
 
   puts "There are #{number_ffmpeg_pods} running right now..."
-  if number_ffmpeg_pods.to_i < 10
+  if number_ffmpeg_pods.to_i < 4
 
     puts "Ooh yeah - I'm starting #{job["uid"]}!"
     begin_job(job["uid"])
