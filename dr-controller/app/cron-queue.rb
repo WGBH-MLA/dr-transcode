@@ -100,20 +100,20 @@ kind: Pod
 metadata:
   name: dr-ffmpeg-#{uid}
   namespace: dr-transcode
+  labels:
+    app: dr-ffmpeg
 spec:
-  app: dr-ffmpeg
   affinity:
     podAntiAffinity:
       requiredDuringSchedulingIgnoredDuringExecution:
-      - podAffinityTerm:
-          labelSelector:
-            matchExpressions:
-            - key: app
-              operator: In
-              values:
-              - dr-ffmpeg
-          topologyKey: kubernetes.io/hostname
-        weight: 1
+      - labelSelector:
+          matchExpressions:
+          - key: app
+            operator: In
+            values:
+            - dr-ffmpeg
+        topologyKey: kubernetes.io/hostname
+        
   volumes:
     - name: obstoresecrets
       secret:
