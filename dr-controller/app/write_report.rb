@@ -12,7 +12,7 @@ CSV.open("alljobs-#{ Time.now.strftime("%m-%e-%y-%H:%M") }.csv", "wb") do |csv|
 end
 
 jobs = @client.query("SELECT * FROM jobs WHERE status=3")
-missing = jobs.uniq {|job| job["input_filepath"]}
+missing = jobs.select {|job| job["fail_reason"] && job["fail_reason"].include?("not found") }.uniq {|job| job["input_filepath"]}
 
 puts missing.inspect
 
@@ -20,8 +20,6 @@ CSV.open("missing-#{ Time.now.strftime("%m-%e-%y-%H:%M") }.csv", "wb") do |csv|
   csv << ['UID', "JobStatus", "Input Filepath", "Fail Reason"]
 
   missing.each do |job|
-    if(job["fail_reason"] && job["fail_reason"].include?("not found") )
-      csv << [ job["uid"], job["status"], job["input_filepath"], job["fail_reason"] ]
-    end
+    csv << [ job["uid"], job["status"], job["input_filepath"], job["fail_reason"] ]    
   end
 end
