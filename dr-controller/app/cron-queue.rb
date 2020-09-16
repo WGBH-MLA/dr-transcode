@@ -122,7 +122,7 @@ spec:
         secretName: obstoresecrets
   containers:
     - name: dr-ffmpeg
-      image: mla-dockerhub.wgbh.org/dr-ffmpeg:87
+      image: mla-dockerhub.wgbh.org/dr-ffmpeg:88
       volumeMounts:
       - mountPath: /root/.aws
         name: obstoresecrets
@@ -140,6 +140,8 @@ spec:
         value: #{ get_output_filepath(input_filepath) }
       - name: DRTRANSCODE_OUTPUT_FILENAME
         value: #{ get_output_filepath(input_filepath).basename }
+      - name: DRTRANSCODE_UID
+        value: #{ uid }
   imagePullSecrets:
       - name: mla-dockerhub
   }
@@ -234,4 +236,7 @@ jobs.each do |job|
   end
 end
 
-# CREATE TABLE jobs (uid varchar(255), status int, input_filepath varchar(1024), fail_reason varchar(1024));
+# CREATE TABLE jobs (uid varchar(255), status int, input_filepath varchar(1024), fail_reason varchar(1024, created_at datetime DEFAULT CURRENT_TIMESTAMP));
+
+# ALTER TABLE jobs ADD COLUMN created_at datetime DEFAULT CURRENT_TIMESTAMP
+
