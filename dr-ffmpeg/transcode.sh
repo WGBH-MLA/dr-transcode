@@ -21,7 +21,7 @@ aws --endpoint-url 'http://s3-bos.wgbh.org' s3api get-object --bucket $DRTRANSCO
 
 
 # if ffprobe output contains str 16:9, use anamorphic cmmand
-if [[ ffprobe $DRTRANSCODE_INPUT_FILENAME | grep "16:9" ]]
+if [[ $(ffprobe $DRTRANSCODE_INPUT_FILENAME | grep "16:9") ]]
   then
 
   $aspect_ratio="-s 640:360"
