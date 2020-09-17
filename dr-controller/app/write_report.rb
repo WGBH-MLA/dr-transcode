@@ -13,7 +13,7 @@ CSV.open("alljobs-#{ Time.now.strftime("%m-%e-%y-%H:%M") }.csv", "wb") do |csv|
   end
 end
 
-jobs = @client.query("SELECT * FROM jobs WHERE status=3")
+jobs = @client.query("SELECT * FROM jobs ORDER BY created_at DESC")
 # missing = jobs.select {|job| job["fail_reason"] && job["fail_reason"].include?("not found") }.uniq {|job| job["input_filepath"]}
 missing = jobs.uniq {|job| job["input_filepath"]}
 
