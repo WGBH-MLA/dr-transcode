@@ -24,9 +24,9 @@ aws --endpoint-url 'http://s3-bos.wgbh.org' s3api get-object --bucket $DRTRANSCO
 if [[ $(ffprobe $DRTRANSCODE_INPUT_FILENAME | grep "16:9") ]]
   then
 
-  $aspect_ratio="-s 640:360"
+  aspect_ratio="-s 640:360"
 else
-  $aspect_ratio="-s 480:360"
+  aspect_ratio="-s 480:360"
 fi
 
 # run video transcode
