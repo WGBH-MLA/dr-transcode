@@ -75,7 +75,7 @@ fi
 #   ffmpeg_return="${PIPESTATUS[0]}"
 # fi
 
-if $ffmpeg_return -ne 0;
+if $ffmpeg_return -ne "0";
 then
   echo "Messed up ffmpeg... trying to update job record for ${ DRTRANSCODE_UID } ${ ffmpeg_output }"
   # mysql -h mysql -u root -p "" -e 'UPDATE jobs SET status=3,fail_reason="Exit ${ ffmpeg_return } - ${ ffmpeg_output }" WHERE uid="${ DRTRANSCODE_UID }"'
