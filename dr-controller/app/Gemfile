@@ -2,7 +2,5 @@ source 'https://rubygems.org'
 ruby '2.7.1'
 
 gem 'aws-sdk-sqs'
-gem 'state_machines'
-gem 'state_machines-activerecord'
 
 gem 'mysql2'

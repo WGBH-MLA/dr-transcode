@@ -30,6 +30,10 @@ def get_output_filepath(input_filepath)
   fp.sub_ext('.mp4')
 end
 
+def get_errortxt_filepath(input_filepath, uid)
+  Pathname.new(input_filepath).dirname + %(error-#{uid}.txt)
+end
+
 def set_job_status(uid, new_status, fail_reason=nil)
   puts "Setting job status for #{uid} to #{new_status}"
   if fail_reason
@@ -188,8 +192,8 @@ if msgs && msgs[0]
   end
 end
 
-# actually start jobs that we successfully initted above
-jobs = @client.query("SELECT * FROM jobs WHERE status=#{JobStatus::Received}")
+# actually start jobs that we successfully initted above - limit 8 so we dont ask 'how many pods' a thousand times every cycle, but have enough of a buffer to get 4 new pods for any issues talking to kube
+jobs = @client.query("SELECT * FROM jobs WHERE status=#{JobStatus::Received} LIMIT 8")
 puts "Found #{jobs.count} jobs with JS::Received"
 jobs.each do |job|
 
@@ -232,7 +236,19 @@ jobs.each do |job|
     set_job_status(job["uid"], JobStatus::CompletedWork)
   else
 
-    puts "Job #{job["uid"]} isnt done, keeeeeeeep going!"
+    # check for error file...
+    puts "Checking for error file on #{job["uid"]}"
+    errortxt_filepath = get_errortxt_filepath(job["input_filepath"], job["uid"])
+    resp = `aws --endpoint-url 'http://s3-bos.wgbh.org' s3api head-object --bucket nehdigitization --key #{output_filepath}`
+
+    if !resp.empty?
+      puts "Error detected on #{job["uid"]}, killing container :("
+      puts `kubectl --kubeconfig=/mnt/kubectl-secret --namespace=dr-transcode delete pod dr-ffmpeg-#{job["uid"]}`  
+      set_job_status(job["uid"], JobStatus::Failed, "Error file was found, failing")
+    else 
+      puts "Job #{job["uid"]} isnt done, keeeeeeeep going!"
+    end
+
   end
 end
 

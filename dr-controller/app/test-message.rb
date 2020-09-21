@@ -10,8 +10,9 @@ puts "Woo-hoo!"
 sqs.send_message({
     queue_url: "https://sqs.us-east-1.amazonaws.com/127946490116/dr-transcode-queue", 
     message_body: %({"input_filepath": "thisvideowillfail.mkv"})
-  })
+})
 
+sqs.send_message({ queue_url: "https://sqs.us-east-1.amazonaws.com/127946490116/dr-transcode-queue", message_body: %({"input_filepath": "23753/barcode108377/PreservationMaster/barcode108377.mov"}) })
 
 # sqs.send_message({
 #     queue_url: "https://sqs.us-east-1.amazonaws.com/127946490116/dr-transcode-queue", 
