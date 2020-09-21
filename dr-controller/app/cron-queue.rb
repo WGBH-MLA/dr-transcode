@@ -30,8 +30,8 @@ def get_output_filepath(input_filepath)
   fp.sub_ext('.mp4')
 end
 
-def get_errortxt_filepath(input_filepath, uid)
-  Pathname.new(input_filepath).dirname + %(error-#{uid}.txt)
+def get_errortxt_filepath(uid)
+  %(dr-transcode-errors/error-#{uid}.txt)
 end
 
 def set_job_status(uid, new_status, fail_reason=nil)
@@ -238,8 +238,8 @@ jobs.each do |job|
 
     # check for error file...
     puts "Checking for error file on #{job["uid"]}"
-    errortxt_filepath = get_errortxt_filepath(job["input_filepath"], job["uid"])
-    resp = `aws --endpoint-url 'http://s3-bos.wgbh.org' s3api head-object --bucket nehdigitization --key #{output_filepath}`
+    errortxt_filepath = get_errortxt_filepath(job["uid"])
+    resp = `aws --endpoint-url 'http://s3-bos.wgbh.org' s3api head-object --bucket nehdigitization --key #{errortxt_filepath}`
 
     if !resp.empty?
       puts "Error detected on #{job["uid"]}, killing container :("

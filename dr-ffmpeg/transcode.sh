@@ -3,7 +3,7 @@ function output_file_exists {
 }
 
 function error_file_exists {
-  errorfilename="error-${DRTRANSCODE_UID}.txt"
+  errorfilename="dr-transcode-errors/error-${DRTRANSCODE_UID}.txt"
   aws --endpoint-url 'http://s3-bos.wgbh.org' s3api head-object --bucket $DRTRANSCODE_BUCKET --key $errorfilename &> /dev/null
 }
 
@@ -33,22 +33,23 @@ aws --endpoint-url 'http://s3-bos.wgbh.org' s3api get-object --bucket $DRTRANSCO
 
 echo "Running ffprobe..."
 ffprobe_output=$( ffprobe $DRTRANSCODE_INPUT_FILENAME 2>&1  )
-echo "ffprobe returned ${ ffprobe_return }"
-if $ffmpeg_return -ne 0;
-then
+ffprobe_return="${PIPESTATUS[0]}"
 
-  echo "ffprobe returned nonzero code... "
+echo "ffprobe returned ${ ffprobe_return }"
+if $ffprobe_return -ne 0;
+then
+  echo "ffprobe returned nonzero code...  ${ ffprobe_return }"
 fi
 
-
-if [[ $( echo "$ffprobe_output"  | grep "moov atom not found") ]]
+if [[ $( echo "$ffprobe_output"  | grep "moov atom not found") || $ffprobe_return -ne 0 ]]
   then
   echo "Failed ffprobe, writing error file..."
+  errorfilepath="dr-transcode-errors/error-${DRTRANSCODE_UID}.txt"
   errorfilename="error-${DRTRANSCODE_UID}.txt"
   echo "$ffprobe_output" > "$errorfilename"
-  aws --endpoint-url 'http://s3-bos.wgbh.org' s3api put-object --bucket $DRTRANSCODE_BUCKET --key $errorfilename --body ./$errorfilename
+  aws --endpoint-url 'http://s3-bos.wgbh.org' s3api put-object --bucket $DRTRANSCODE_BUCKET --key $errorfilepath --body ./$errorfilename
   # add public acl to de error txt file
-  aws --endpoint-url 'http://s3-bos.wgbh.org' s3api put-object-acl --bucket $DRTRANSCODE_BUCKET --key $errorfilename --acl public-read
+  aws --endpoint-url 'http://s3-bos.wgbh.org' s3api put-object-acl --bucket $DRTRANSCODE_BUCKET --key $errorfilepath --acl public-read
   exit 0
 fi
 
@@ -56,10 +57,8 @@ fi
 if [[ $( echo "$ffprobe_output"  | grep "16:9") ]]
   then
   aspect_ratio="-s 640:360"
-  ffprobe_return="${PIPESTATUS[0]}"
 else
   aspect_ratio="-s 480:360"
-  ffprobe_return="${PIPESTATUS[0]}"
 fi
 
 echo "Chose aspect ratio setting ${ aspect_ratio }"
