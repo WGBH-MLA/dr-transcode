@@ -35,13 +35,13 @@ echo "Running ffprobe..."
 ffprobe_output=$( ffprobe $DRTRANSCODE_INPUT_FILENAME 2>&1  )
 ffprobe_return="${PIPESTATUS[0]}"
 
-echo "ffprobe returned ${ ffprobe_return }"
-if $ffprobe_return -ne 0;
+echo "ffprobe returned $ffprobe_return"
+if "$ffprobe_return" -ne "0";
 then
-  echo "ffprobe returned nonzero code...  ${ ffprobe_return }"
+  echo "ffprobe returned nonzero code... $ffprobe_return"
 fi
 
-if [[ $( echo "$ffprobe_output"  | grep "moov atom not found") || $ffprobe_return -ne 0 ]]
+if [[ $( echo "$ffprobe_output"  | grep "moov atom not found") || "$ffprobe_return" -ne "0" ]]
   then
   echo "Failed ffprobe, writing error file..."
   errorfilepath="dr-transcode-errors/error-${DRTRANSCODE_UID}.txt"
@@ -61,7 +61,7 @@ else
   aspect_ratio="-s 480:360"
 fi
 
-echo "Chose aspect ratio setting ${ aspect_ratio }"
+echo "Chose aspect ratio setting $aspect_ratio"
 
 # run video transcode
 if [[ "$DRTRANSCODE_INPUT_FILENAME" == *dv ]]
@@ -92,11 +92,11 @@ fi
 
 
 echo "ffmpeg output..."
-echo "${ ffmpeg_output }"
+echo "$ffmpeg_output"
 
-if $ffmpeg_return -ne 0;
+if "$ffmpeg_return" -ne "0";
 then
-  echo "Messed up ffmpeg... trying to record error output for ${ DRTRANSCODE_UID }"
+  echo "Messed up ffmpeg... trying to record error output for $DRTRANSCODE_UID"
   # mysql -h mysql -u root -p "" -e 'UPDATE jobs SET status=3,fail_reason="Exit ${ ffmpeg_return } - ${ ffmpeg_output }" WHERE uid="${ DRTRANSCODE_UID }"'
   
   # pipe error output to tempfile
