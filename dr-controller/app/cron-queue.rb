@@ -126,7 +126,7 @@ spec:
         secretName: obstoresecrets
   containers:
     - name: dr-ffmpeg
-      image: mla-dockerhub.wgbh.org/dr-ffmpeg:99
+      image: mla-dockerhub.wgbh.org/dr-ffmpeg:100
       volumeMounts:
       - mountPath: /root/.aws
         name: obstoresecrets
@@ -193,7 +193,7 @@ if msgs && msgs[0]
 end
 
 # actually start jobs that we successfully initted above - limit 8 so we dont ask 'how many pods' a thousand times every cycle, but have enough of a buffer to get 4 new pods for any issues talking to kube
-jobs = @client.query("SELECT * FROM jobs WHERE status=#{JobStatus::Received} LIMIT 8")
+jobs = @client.query("SELECT * FROM jobs WHERE status=#{JobStatus::Received}")
 puts "Found #{jobs.count} jobs with JS::Received"
 jobs.each do |job|
 

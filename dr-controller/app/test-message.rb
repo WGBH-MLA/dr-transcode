@@ -8,6 +8,6 @@ sqs = Aws::SQS::Client.new(
 
 puts "Woo-hoo!"
 
-sqs.send_message({ queue_url: "https://sqs.us-east-1.amazonaws.com/127946490116/dr-transcode-queue", message_body: %({"input_filepath": "24038/barcode96524/PreservationMaster/barcode96524.mkv"}) })
+sqs.send_message({ queue_url: "https://sqs.us-east-1.amazonaws.com/127946490116/dr-transcode-queue", message_body: %({"input_filepath": "23857/barcode129814/PreservationMaster/barcode129814.mkv"}) })
 
 puts "Wa-hahhh!!!"
