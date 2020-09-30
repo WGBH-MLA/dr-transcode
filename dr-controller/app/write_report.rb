@@ -2,6 +2,10 @@
 require 'csv'
 require 'mysql2'
 require 'pathname'
+
+# pass in query if you like
+query = ARGV[0]
+
 @client = Mysql2::Client.new(host: "mysql", username: "root", database: "drtranscode", password: "", port: 3306)
 
 jobs = @client.query("SELECT * FROM jobs")
@@ -13,7 +17,9 @@ CSV.open("alljobs-#{ Time.now.strftime("%m-%e-%y-%H:%M") }.csv", "wb") do |csv|
   end
 end
 
-jobs = @client.query("SELECT * FROM jobs ORDER BY created_at DESC")
+query ||= "SELECT * FROM jobs ORDER BY created_at DESC"
+
+jobs = @client.query(query)
 # missing = jobs.select {|job| job["fail_reason"] && job["fail_reason"].include?("not found") }.uniq {|job| job["input_filepath"]}
 missing = jobs.uniq {|job| job["input_filepath"]}
 
