@@ -99,8 +99,8 @@ def begin_job(uid)
   input_filename = fp.basename
 
   pod_yml_content = %{
-apiVersion: batch/v1
-kind: Job
+apiVersion: v1
+kind: Pod
 metadata:
   name: dr-ffmpeg-#{uid}
   namespace: dr-transcode
@@ -126,7 +126,7 @@ spec:
         secretName: obstoresecrets
   containers:
     - name: dr-ffmpeg
-      image: mla-dockerhub.wgbh.org/dr-ffmpeg:103
+      image: mla-dockerhub.wgbh.org/dr-ffmpeg:104
       volumeMounts:
       - mountPath: /root/.aws
         name: obstoresecrets
@@ -146,7 +146,6 @@ spec:
         value: #{ get_output_filepath(input_filepath).basename }
       - name: DRTRANSCODE_UID
         value: #{ uid }
-  restartPolicy: Never
   imagePullSecrets:
       - name: mla-dockerhub
   }
