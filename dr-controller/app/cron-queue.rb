@@ -99,7 +99,7 @@ def begin_job(uid)
   input_filename = fp.basename
 
   pod_yml_content = %{
-apiVersion: v1
+apiVersion: batch/v1
 kind: Job
 metadata:
   name: dr-ffmpeg-#{uid}
@@ -126,7 +126,7 @@ spec:
         secretName: obstoresecrets
   containers:
     - name: dr-ffmpeg
-      image: mla-dockerhub.wgbh.org/dr-ffmpeg:102
+      image: mla-dockerhub.wgbh.org/dr-ffmpeg:103
       volumeMounts:
       - mountPath: /root/.aws
         name: obstoresecrets
