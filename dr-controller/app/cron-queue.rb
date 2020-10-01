@@ -99,58 +99,55 @@ def begin_job(uid)
   input_filename = fp.basename
 
   pod_yml_content = %{
-apiVersion: batch/v1
-kind: Job
+apiVersion: v1
+kind: Pod
 metadata:
   name: dr-ffmpeg-#{uid}
   namespace: dr-transcode
   labels:
     app: dr-ffmpeg
 spec:
-  template:
-    spec:
-      affinity:
-        podAntiAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-          - labelSelector:
-              matchExpressions:
-              - key: app
-                operator: In
-                values:
-                - dr-ffmpeg
-            topologyKey: kubernetes.io/hostname
-            
-      volumes:
-        - name: obstoresecrets
-          secret:
-            defaultMode: 256
-            optional: false
-            secretName: obstoresecrets
-      containers:
-        - name: dr-ffmpeg
-          image: mla-dockerhub.wgbh.org/dr-ffmpeg:109
-          volumeMounts:
-          - mountPath: /root/.aws
-            name: obstoresecrets
-            readOnly: true
-          env:
-          - name: DRTRANSCODE_UID
-            value: #{uid}
-          - name: DRTRANSCODE_BUCKET
-            value: nehdigitization
-          - name: DRTRANSCODE_INPUT_KEY
-            value: #{ input_filepath }
-          - name: DRTRANSCODE_INPUT_FILENAME
-            value: #{ input_filename }
-          - name: DRTRANSCODE_OUTPUT_KEY
-            value: #{ get_output_filepath(input_filepath) }
-          - name: DRTRANSCODE_OUTPUT_FILENAME
-            value: #{ get_output_filepath(input_filepath).basename }
-          - name: DRTRANSCODE_UID
-            value: #{ uid }
-      restartPolicy: Never
-      imagePullSecrets:
-          - name: mla-dockerhub
+  affinity:
+    podAntiAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+      - labelSelector:
+          matchExpressions:
+          - key: app
+            operator: In
+            values:
+            - dr-ffmpeg
+        topologyKey: kubernetes.io/hostname
+        
+  volumes:
+    - name: obstoresecrets
+      secret:
+        defaultMode: 256
+        optional: false
+        secretName: obstoresecrets
+  containers:
+    - name: dr-ffmpeg
+      image: mla-dockerhub.wgbh.org/dr-ffmpeg:110
+      volumeMounts:
+      - mountPath: /root/.aws
+        name: obstoresecrets
+        readOnly: true
+      env:
+      - name: DRTRANSCODE_UID
+        value: #{uid}
+      - name: DRTRANSCODE_BUCKET
+        value: nehdigitization
+      - name: DRTRANSCODE_INPUT_KEY
+        value: #{ input_filepath }
+      - name: DRTRANSCODE_INPUT_FILENAME
+        value: #{ input_filename }
+      - name: DRTRANSCODE_OUTPUT_KEY
+        value: #{ get_output_filepath(input_filepath) }
+      - name: DRTRANSCODE_OUTPUT_FILENAME
+        value: #{ get_output_filepath(input_filepath).basename }
+      - name: DRTRANSCODE_UID
+        value: #{ uid }
+  imagePullSecrets:
+      - name: mla-dockerhub
   }
 
   File.open('/root/pod.yml', 'w+') do |f|
@@ -234,8 +231,8 @@ jobs.each do |job|
   if !resp.empty?
     # head-object returns "" in this context when 404, otherwise gives a zesty pan-fried json message as a String
     
-    puts "File #{output_filepath} was found on object store - Going to delete pod dr-ffmpeg-#{job["uid"]}"
-    # puts `kubectl --kubeconfig=/mnt/kubectl-secret --namespace=dr-transcode delete pod dr-ffmpeg-#{job["uid"]}`  
+    puts "File #{output_filepath} was found on object store - Attempting to delete pod dr-ffmpeg-#{job["uid"]}"
+    puts `kubectl --kubeconfig=/mnt/kubectl-secret --namespace=dr-transcode delete pod dr-ffmpeg-#{job["uid"]}`  
     set_job_status(job["uid"], JobStatus::CompletedWork)
   else
 
@@ -255,8 +252,6 @@ jobs.each do |job|
 
   end
 end
-
-puts `kubectl --kubeconfig=/mnt/kubectl-secret --namespace=dr-transcode delete jobs --field-selector status.successful=1`  
 
 
 # CREATE TABLE jobs (uid varchar(255), status int, input_filepath varchar(1024), fail_reason varchar(1024, created_at datetime DEFAULT CURRENT_TIMESTAMP));
