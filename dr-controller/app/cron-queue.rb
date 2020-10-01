@@ -99,55 +99,58 @@ def begin_job(uid)
   input_filename = fp.basename
 
   pod_yml_content = %{
-apiVersion: v1
-kind: Pod
+apiVersion: batch/v1
+kind: Job
 metadata:
   name: dr-ffmpeg-#{uid}
   namespace: dr-transcode
   labels:
     app: dr-ffmpeg
 spec:
-  affinity:
-    podAntiAffinity:
-      requiredDuringSchedulingIgnoredDuringExecution:
-      - labelSelector:
-          matchExpressions:
-          - key: app
-            operator: In
-            values:
-            - dr-ffmpeg
-        topologyKey: kubernetes.io/hostname
-        
-  volumes:
-    - name: obstoresecrets
-      secret:
-        defaultMode: 256
-        optional: false
-        secretName: obstoresecrets
-  containers:
-    - name: dr-ffmpeg
-      image: mla-dockerhub.wgbh.org/dr-ffmpeg:104
-      volumeMounts:
-      - mountPath: /root/.aws
-        name: obstoresecrets
-        readOnly: true
-      env:
-      - name: DRTRANSCODE_UID
-        value: #{uid}
-      - name: DRTRANSCODE_BUCKET
-        value: nehdigitization
-      - name: DRTRANSCODE_INPUT_KEY
-        value: #{ input_filepath }
-      - name: DRTRANSCODE_INPUT_FILENAME
-        value: #{ input_filename }
-      - name: DRTRANSCODE_OUTPUT_KEY
-        value: #{ get_output_filepath(input_filepath) }
-      - name: DRTRANSCODE_OUTPUT_FILENAME
-        value: #{ get_output_filepath(input_filepath).basename }
-      - name: DRTRANSCODE_UID
-        value: #{ uid }
-  imagePullSecrets:
-      - name: mla-dockerhub
+  template:
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - dr-ffmpeg
+            topologyKey: kubernetes.io/hostname
+            
+      volumes:
+        - name: obstoresecrets
+          secret:
+            defaultMode: 256
+            optional: false
+            secretName: obstoresecrets
+      containers:
+        - name: dr-ffmpeg
+          image: mla-dockerhub.wgbh.org/dr-ffmpeg:105
+          volumeMounts:
+          - mountPath: /root/.aws
+            name: obstoresecrets
+            readOnly: true
+          env:
+          - name: DRTRANSCODE_UID
+            value: #{uid}
+          - name: DRTRANSCODE_BUCKET
+            value: nehdigitization
+          - name: DRTRANSCODE_INPUT_KEY
+            value: #{ input_filepath }
+          - name: DRTRANSCODE_INPUT_FILENAME
+            value: #{ input_filename }
+          - name: DRTRANSCODE_OUTPUT_KEY
+            value: #{ get_output_filepath(input_filepath) }
+          - name: DRTRANSCODE_OUTPUT_FILENAME
+            value: #{ get_output_filepath(input_filepath).basename }
+          - name: DRTRANSCODE_UID
+            value: #{ uid }
+      restartPolicy: Never
+      imagePullSecrets:
+          - name: mla-dockerhub
   }
 
   File.open('/root/pod.yml', 'w+') do |f|
