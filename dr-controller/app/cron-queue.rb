@@ -107,8 +107,6 @@ metadata:
   labels:
     app: dr-ffmpeg
 spec:
-  successfulJobsHistoryLimit: 0
-  failedJobsHistoryLimit: 0
   template:
     spec:
       affinity:
