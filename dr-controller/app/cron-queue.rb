@@ -128,7 +128,7 @@ spec:
             secretName: obstoresecrets
       containers:
         - name: dr-ffmpeg
-          image: mla-dockerhub.wgbh.org/dr-ffmpeg:107
+          image: mla-dockerhub.wgbh.org/dr-ffmpeg:108
           volumeMounts:
           - mountPath: /root/.aws
             name: obstoresecrets
@@ -246,7 +246,8 @@ jobs.each do |job|
 
     if !resp.empty?
       puts "Error detected on #{job["uid"]}, Going to kill container :("
-      # puts `kubectl --kubeconfig=/mnt/kubectl-secret --namespace=dr-transcode delete pod dr-ffmpeg-#{job["uid"]}`  
+      # theres not as simple of a way to indicate job failure, stick with this
+      puts `kubectl --kubeconfig=/mnt/kubectl-secret --namespace=dr-transcode delete pod dr-ffmpeg-#{job["uid"]}`  
       set_job_status(job["uid"], JobStatus::Failed, "Error file was found, failing")
     else 
       puts "Job #{job["uid"]} isnt done, keeeeeeeep going!"
@@ -256,7 +257,6 @@ jobs.each do |job|
 end
 
 puts `kubectl --kubeconfig=/mnt/kubectl-secret --namespace=dr-transcode delete jobs --field-selector status.successful=1`  
-puts `kubectl --kubeconfig=/mnt/kubectl-secret --namespace=dr-transcode delete jobs --field-selector status.failed=1`  
 
 
 # CREATE TABLE jobs (uid varchar(255), status int, input_filepath varchar(1024), fail_reason varchar(1024, created_at datetime DEFAULT CURRENT_TIMESTAMP));
