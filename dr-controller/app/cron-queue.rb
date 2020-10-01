@@ -107,6 +107,8 @@ metadata:
   labels:
     app: dr-ffmpeg
 spec:
+  successfulJobsHistoryLimit: 0
+  failedJobsHistoryLimit: 0
   template:
     spec:
       affinity:
@@ -128,7 +130,7 @@ spec:
             secretName: obstoresecrets
       containers:
         - name: dr-ffmpeg
-          image: mla-dockerhub.wgbh.org/dr-ffmpeg:105
+          image: mla-dockerhub.wgbh.org/dr-ffmpeg:106
           volumeMounts:
           - mountPath: /root/.aws
             name: obstoresecrets
