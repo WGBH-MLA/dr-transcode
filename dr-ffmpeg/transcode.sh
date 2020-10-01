@@ -50,7 +50,7 @@ if [[ $( echo "$ffprobe_output"  | grep "moov atom not found") || "$ffprobe_retu
   aws --endpoint-url 'http://s3-bos.wgbh.org' s3api put-object --bucket $DRTRANSCODE_BUCKET --key $errorfilepath --body ./$errorfilename
   # add public acl to de error txt file
   aws --endpoint-url 'http://s3-bos.wgbh.org' s3api put-object-acl --bucket $DRTRANSCODE_BUCKET --key $errorfilepath --acl public-read
-  exit 0
+  exit 1
 fi
 
 # if ffprobe output contains str 16:9, use anamorphic cmmand
@@ -105,7 +105,7 @@ then
   aws --endpoint-url 'http://s3-bos.wgbh.org' s3api put-object --bucket $DRTRANSCODE_BUCKET --key $errorfilename --body ./$errorfilename
   # add public acl to de error txt file
   aws --endpoint-url 'http://s3-bos.wgbh.org' s3api put-object-acl --bucket $DRTRANSCODE_BUCKET --key $errorfilename --acl public-read
-  exit 0
+  exit 1
 fi
 
 # # upload output file to s3

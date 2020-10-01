@@ -130,7 +130,7 @@ spec:
             secretName: obstoresecrets
       containers:
         - name: dr-ffmpeg
-          image: mla-dockerhub.wgbh.org/dr-ffmpeg:106
+          image: mla-dockerhub.wgbh.org/dr-ffmpeg:107
           volumeMounts:
           - mountPath: /root/.aws
             name: obstoresecrets
@@ -236,8 +236,8 @@ jobs.each do |job|
   if !resp.empty?
     # head-object returns "" in this context when 404, otherwise gives a zesty pan-fried json message as a String
     
-    puts "File #{output_filepath} was found on object store - Attemping to delete pod dr-ffmpeg-#{job["uid"]}"
-    puts `kubectl --kubeconfig=/mnt/kubectl-secret --namespace=dr-transcode delete pod dr-ffmpeg-#{job["uid"]}`  
+    puts "File #{output_filepath} was found on object store - Going to delete pod dr-ffmpeg-#{job["uid"]}"
+    # puts `kubectl --kubeconfig=/mnt/kubectl-secret --namespace=dr-transcode delete pod dr-ffmpeg-#{job["uid"]}`  
     set_job_status(job["uid"], JobStatus::CompletedWork)
   else
 
@@ -247,8 +247,8 @@ jobs.each do |job|
     resp = `aws --endpoint-url 'http://s3-bos.wgbh.org' s3api head-object --bucket nehdigitization --key #{errortxt_filepath}`
 
     if !resp.empty?
-      puts "Error detected on #{job["uid"]}, killing container :("
-      puts `kubectl --kubeconfig=/mnt/kubectl-secret --namespace=dr-transcode delete pod dr-ffmpeg-#{job["uid"]}`  
+      puts "Error detected on #{job["uid"]}, Going to kill container :("
+      # puts `kubectl --kubeconfig=/mnt/kubectl-secret --namespace=dr-transcode delete pod dr-ffmpeg-#{job["uid"]}`  
       set_job_status(job["uid"], JobStatus::Failed, "Error file was found, failing")
     else 
       puts "Job #{job["uid"]} isnt done, keeeeeeeep going!"
@@ -256,6 +256,10 @@ jobs.each do |job|
 
   end
 end
+
+puts `kubectl --kubeconfig=/mnt/kubectl-secret --namespace=dr-transcode delete jobs --field-selector status.successful=1`  
+puts `kubectl --kubeconfig=/mnt/kubectl-secret --namespace=dr-transcode delete jobs --field-selector status.failed=1`  
+
 
 # CREATE TABLE jobs (uid varchar(255), status int, input_filepath varchar(1024), fail_reason varchar(1024, created_at datetime DEFAULT CURRENT_TIMESTAMP));
 
