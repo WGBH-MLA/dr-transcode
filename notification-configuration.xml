@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<NotificationConfiguration>
+   <QueueConfiguration>
+      <Event>s3:ObjectCreated:*</Event>
+      <Filter>
+         <S3Key>
+            <FilterRule>
+               <Name>suffix</Name>
+               <Value>.wav</Value>
+            </FilterRule>
+            <FilterRule>
+               <Name>suffix</Name>
+               <Value>.mov</Value>
+            </FilterRule>
+            <FilterRule>
+               <Name>suffix</Name>
+               <Value>.dv</Value>
+            </FilterRule>
+            <FilterRule>
+               <Name>suffix</Name>
+               <Value>.mkv</Value>
+            </FilterRule>
+         </S3Key>
+      </Filter>
+      <Queue>arn:aws:sqs:us-east-1:127946490116:dr-transcode-queue</Queue>
+   </QueueConfiguration>
+</NotificationConfiguration>
