@@ -22,6 +22,6 @@
             </FilterRule>
          </S3Key>
       </Filter>
-      <Queue>http://sqs.region1.cloudian.com/21ef364f2697e48b99dfeab6851afb19/dr-transcode-sqs-queue</Queue>
+      <Queue>arn:aws:sqs:bos:21ef364f2697e48b99dfeab6851afb19:dr-transcode-sqs-queue</Queue>
    </QueueConfiguration>
 </NotificationConfiguration>
