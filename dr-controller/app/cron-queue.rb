@@ -18,10 +18,10 @@ end
 # to let aws cli use object store, we cant use default AWS_ACCESS_WHATEVER env variables, because cli prefers those over the /root/.aws/credentials files
 #  sqs client
 @sqs = Aws::SQS::Client.new(
-  region: 'us-east-1',
+  region: 'region1'
   # reading these in from files because ENV variables are not available in cronjob, and getting them piped into cron login sessions is apparently impossible with however they are injected into the container in rancher 
-  access_key_id: File.read('/root/sqs/sqs_a'),
-  secret_access_key: File.read('/root/sqs/sqs_s')
+  # access_key_id: File.read('/root/sqs/sqs_a'),
+  # secret_access_key: File.read('/root/sqs/sqs_s')
 )
 
 def get_output_filepath(input_filepath)
@@ -164,7 +164,8 @@ spec:
   set_job_status(uid, JobStatus::Working)
 end
 
-resp = @sqs.receive_message(queue_url: 'https://sqs.us-east-1.amazonaws.com/127946490116/dr-transcode-queue', max_number_of_messages: 10)
+# https://sqs.us-east-1.amazonaws.com/127946490116/dr-transcode-queue
+resp = @sqs.receive_message(queue_url: ENV["DRTRANSCODE_QUEUE_URL"], max_number_of_messages: 10)
 
 # check if its time to LIVE
 msgs = resp.messages
@@ -187,7 +188,7 @@ if msgs && msgs[0]
     end
   
     puts "Deleting processed SQS message #{message.receipt_handle}"
-    @sqs.delete_message({queue_url: 'https://sqs.us-east-1.amazonaws.com/127946490116/dr-transcode-queue', receipt_handle: message.receipt_handle})
+    @sqs.delete_message({queue_url: ENV["DRTRANSCODE_QUEUE_URL"], receipt_handle: message.receipt_handle})
     
   end
 end
