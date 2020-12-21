@@ -1,0 +1,107 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    deployment.kubernetes.io/revision: "102"
+    field.cattle.io/creatorId: u-3gtd23m5tn
+    kubernetes.io/change-cause: kubectl set image deployment.v1.apps/dr-controller
+      dr-controller=mla-dockerhub.wgbh.org/dr-controller:115 --kubeconfig=/home/ec2-user/.kube/wgbh-bos-cluster-user-config
+      --namespace=dr-transcode --record=true
+  creationTimestamp: "2020-07-22T15:20:55Z"
+  generation: 106
+  labels:
+    cattle.io/creator: norman
+    workload.user.cattle.io/workloadselector: deployment-dr-transcode-dr-controller
+  name: dr-controller
+  namespace: dr-transcode
+  resourceVersion: "216441134"
+  selfLink: /apis/apps/v1/namespaces/dr-transcode/deployments/dr-controller
+  uid: faeaae2f-9bf4-4512-93de-1107819216f9
+spec:
+  progressDeadlineSeconds: 600
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      workload.user.cattle.io/workloadselector: deployment-dr-transcode-dr-controller
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+    type: RollingUpdate
+  template:
+    metadata:
+      annotations:
+        cattle.io/timestamp: "2020-12-21T15:12:28Z"
+      creationTimestamp: null
+      labels:
+        workload.user.cattle.io/workloadselector: deployment-dr-transcode-dr-controller
+    spec:
+      containers:
+      - envFrom:
+        - configMapRef:
+            name: dr-transcode-config
+            optional: false
+        image: mla-dockerhub.wgbh.org/dr-controller:115
+        imagePullPolicy: Always
+        name: dr-controller
+        resources: {}
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities: {}
+          privileged: false
+          readOnlyRootFilesystem: false
+          runAsNonRoot: false
+        stdin: true
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        tty: true
+        volumeMounts:
+        - mountPath: /mnt
+          name: kubectl
+        - mountPath: /root/.aws
+          name: obstoresecrets
+        - mountPath: /root/queueurl
+          name: queueurl
+      dnsPolicy: ClusterFirst
+      imagePullSecrets:
+      - name: mla-dockerhub
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext: {}
+      terminationGracePeriodSeconds: 30
+      volumes:
+      - name: kubectl
+        secret:
+          defaultMode: 256
+          optional: false
+          secretName: kubectl
+      - name: obstoresecrets
+        secret:
+          defaultMode: 256
+          optional: false
+          secretName: obstoresecrets
+      - configMap:
+          defaultMode: 256
+          name: dr-transcode-config
+          optional: false
+        name: queueurl
+status:
+  availableReplicas: 1
+  conditions:
+  - lastTransitionTime: "2020-09-26T06:45:43Z"
+    lastUpdateTime: "2020-09-26T06:45:43Z"
+    message: Deployment has minimum availability.
+    reason: MinimumReplicasAvailable
+    status: "True"
+    type: Available
+  - lastTransitionTime: "2020-12-21T14:57:54Z"
+    lastUpdateTime: "2020-12-21T15:13:13Z"
+    message: ReplicaSet "dr-controller-6b7c4bb96d" has successfully progressed.
+    reason: NewReplicaSetAvailable
+    status: "True"
+    type: Progressing
+  observedGeneration: 106
+  readyReplicas: 1
+  replicas: 1
+  updatedReplicas: 1

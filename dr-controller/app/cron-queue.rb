@@ -126,7 +126,7 @@ spec:
         secretName: obstoresecrets
   containers:
     - name: dr-ffmpeg
-      image: mla-dockerhub.wgbh.org/dr-ffmpeg:115
+      image: mla-dockerhub.wgbh.org/dr-ffmpeg:116
       volumeMounts:
       - mountPath: /root/.aws
         name: obstoresecrets
@@ -165,7 +165,8 @@ spec:
 end
 
 # https://sqs.us-east-1.amazonaws.com/127946490116/dr-transcode-queue
-resp = @sqs.receive_message(queue_url: ENV["DRTRANSCODE_QUEUE_URL"], max_number_of_messages: 10)
+# because this runs in a cron, regular config-mapped ENV vars are not available, so get it from filemount
+resp = @sqs.receive_message(queue_url: File.read('/root/queueurl'), max_number_of_messages: 10)
 
 # check if its time to LIVE
 msgs = resp.messages
