@@ -1,6 +1,5 @@
 # IMPORTANT :: For right now, you have to run crontab -e .. :wq on controller in order for crontab to take effect - then we get 2 work
 require 'mysql2'
-require 'aws-sdk-sqs'
 require 'securerandom'
 require 'json'
 require 'pathname'
@@ -15,14 +14,33 @@ end
 # load db..
 @client = Mysql2::Client.new(host: "mysql", username: "root", database: "drtranscode", password: "", port: 3306)
 
-# to let aws cli use object store, we cant use default AWS_ACCESS_WHATEVER env variables, because cli prefers those over the /root/.aws/credentials files
-#  sqs client
-@sqs = Aws::SQS::Client.new(
-  region: 'region1'
-  # reading these in from files because ENV variables are not available in cronjob, and getting them piped into cron login sessions is apparently impossible with however they are injected into the container in rancher 
-  # access_key_id: File.read('/root/sqs/sqs_a'),
-  # secret_access_key: File.read('/root/sqs/sqs_s')
-)
+# ruby aws-sdk-sqs does not support custom port numbers when specifying a custom endpoint, so just use the cli instead
+def receive_sqs_messages(queue_url)
+  # returns json string of output
+  msgjson = `aws --region region1 --endpoint-url 'http://s3-sqs.wgbh.org:18090/' sqs receive-message --max-number-of-messages 10 --queue-url #{queue_url}`
+
+  begin
+    msgs = JSON.parse(msgjson)
+  rescue JSON::ParseError
+    return []
+  end
+
+  return msgs["Messages"]
+end
+
+def key_from_sqs_message(msg)
+  body = JSON.parse( msg["Body"] )
+  # rec handle is for deleting this message when we're done with it
+  return {receipt_handle: msg["ReceiptHandle"], key: body["Records"][0]["s3"]["object"]["key"]}
+rescue JSON::ParseError
+  # nothin!
+  return nil
+end
+
+def delete_sqs_message(queue_url, handle)
+  `aws --region region1 --endpoint-url 'http://s3-sqs.wgbh.org:18090/' sqs delete-message --queue-url #{queue_url} --receipt-handle #{handle}`
+end
+
 
 def get_output_filepath(input_filepath)
   fp = Pathname.new(input_filepath)
@@ -126,7 +144,7 @@ spec:
         secretName: obstoresecrets
   containers:
     - name: dr-ffmpeg
-      image: mla-dockerhub.wgbh.org/dr-ffmpeg:118
+      image: mla-dockerhub.wgbh.org/dr-ffmpeg:119
       volumeMounts:
       - mountPath: /root/.aws
         name: obstoresecrets
@@ -164,17 +182,16 @@ spec:
   set_job_status(uid, JobStatus::Working)
 end
 
-# https://sqs.us-east-1.amazonaws.com/127946490116/dr-transcode-queue
-# because this runs in a cron, regular config-mapped ENV vars are not available, so get it from filemount
-resp = @sqs.receive_message(queue_url: File.read('/root/queueurl/DRTRANSCODE_QUEUE_URL'), max_number_of_messages: 10)
-
 # check if its time to LIVE
-msgs = resp.messages
+# because this runs in a cron, regular config-mapped ENV vars are not available, so get it from filemount
+queue_url = File.read('/root/queueurl/DRTRANSCODE_QUEUE_URL')
+msgs = receive_sqs_messages( queue_url ).map {|m| key_from_sqs_message(m) }
 puts "got SQS messages #{msgs}"
 if msgs && msgs[0]
   msgs.each do |message|
 
-    input_filepath = JSON.parse(message.body)["input_filepath"]
+    # input_filepath = JSON.parse(message.body)["input_filepath"]
+    input_filepath = message["key"]
 
     if validate_for_init(input_filepath)
       puts "Here we go initting job"
@@ -188,9 +205,10 @@ if msgs && msgs[0]
       puts "Failed to initialize job for #{input_filepath} - nonfailed job(s) exist for this path."
     end
   
-    puts "Deleting processed SQS message #{message.receipt_handle}"
-    @sqs.delete_message({queue_url: ENV["DRTRANSCODE_QUEUE_URL"], receipt_handle: message.receipt_handle})
-    
+    puts "Deleting processed SQS message #{message[:receipt_handle]}"
+    # puts "Deleting processed SQS message #{message.receipt_handle}"
+    # @sqs.delete_message({queue_url: ENV["DRTRANSCODE_QUEUE_URL"], receipt_handle: message.receipt_handle})
+    delete_sqs_message(queue_url, message[:receipt_handle])
   end
 end
 

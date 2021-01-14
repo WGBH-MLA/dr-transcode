@@ -1,6 +1,7 @@
 {
   "QueueConfigurations": [
     {
+      "Id": "dr-transcode-queue-notification-id",
       "QueueArn": "arn:aws:sqs:bos:21ef364f2697e48b99dfeab6851afb19:dr-transcode-sqs-queue",
       "Events": ["s3:ObjectCreated:*"],
       "Filter": {
