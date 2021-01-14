@@ -144,7 +144,7 @@ spec:
         secretName: obstoresecrets
   containers:
     - name: dr-ffmpeg
-      image: mla-dockerhub.wgbh.org/dr-ffmpeg:119
+      image: mla-dockerhub.wgbh.org/dr-ffmpeg:120
       volumeMounts:
       - mountPath: /root/.aws
         name: obstoresecrets
@@ -191,7 +191,8 @@ if msgs && msgs[0]
   msgs.each do |message|
 
     # input_filepath = JSON.parse(message.body)["input_filepath"]
-    input_filepath = message["key"]
+    puts "GOT MESSAGE! #{message}"
+    input_filepath = message[:key]
 
     if validate_for_init(input_filepath)
       puts "Here we go initting job"
