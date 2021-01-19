@@ -30,6 +30,14 @@ end
 
 def key_from_sqs_message(msg)
   body = JSON.parse( msg["Body"] )
+
+  # need this to dispose of irrelevant bucket notifications
+  unless body && body["Records"] && body["Records"].present? && body["Records"][0]["s3"] && body["Records"][0]["s3"]["object"] && body["Records"][0]["s3"]["object"]["key"]
+
+    puts "Message did not have correct parameters: #{msg}, skipping"
+    return nil 
+  end
+
   # rec handle is for deleting this message when we're done with it
   return {receipt_handle: msg["ReceiptHandle"], key: body["Records"][0]["s3"]["object"]["key"]}
 rescue JSON::ParseError
@@ -144,7 +152,7 @@ spec:
         secretName: obstoresecrets
   containers:
     - name: dr-ffmpeg
-      image: mla-dockerhub.wgbh.org/dr-ffmpeg:121
+      image: mla-dockerhub.wgbh.org/dr-ffmpeg:122
       volumeMounts:
       - mountPath: /root/.aws
         name: obstoresecrets
@@ -185,7 +193,7 @@ end
 # check if its time to LIVE
 # because this runs in a cron, regular config-mapped ENV vars are not available, so get it from filemount
 queue_url = File.read('/root/queueurl/DRTRANSCODE_QUEUE_URL')
-msgs = receive_sqs_messages( queue_url ).map {|m| key_from_sqs_message(m) }
+msgs = receive_sqs_messages( queue_url ).map {|m| key_from_sqs_message(m) }.compact
 puts "got SQS messages #{msgs}"
 if msgs && msgs[0]
   msgs.each do |message|
