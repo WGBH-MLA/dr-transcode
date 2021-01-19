@@ -32,7 +32,7 @@ def key_from_sqs_message(msg)
   body = JSON.parse( msg["Body"] )
 
   # need this to dispose of irrelevant bucket notifications
-  unless body && body["Records"] && body["Records"].present? && body["Records"][0]["s3"] && body["Records"][0]["s3"]["object"] && body["Records"][0]["s3"]["object"]["key"]
+  unless body && body["Records"] && body["Records"].count > 0 && body["Records"][0]["s3"] && body["Records"][0]["s3"]["object"] && body["Records"][0]["s3"]["object"]["key"]
 
     puts "Message did not have correct parameters: #{msg}, skipping"
     return nil 
@@ -152,7 +152,7 @@ spec:
         secretName: obstoresecrets
   containers:
     - name: dr-ffmpeg
-      image: mla-dockerhub.wgbh.org/dr-ffmpeg:122
+      image: mla-dockerhub.wgbh.org/dr-ffmpeg:123
       volumeMounts:
       - mountPath: /root/.aws
         name: obstoresecrets
