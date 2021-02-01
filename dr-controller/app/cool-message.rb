@@ -9,6 +9,10 @@ queue_url = File.read('/root/queueurl/DRTRANSCODE_QUEUE_URL')
 
 puts "Woo-hoo!"
 
+  # %('{ "manualAction": "stripTimecode", "manualParameter": "stripLeft", "Records": [ { "s3": { "object": { "key": "24324/barcode142167/PreservationMaster/barcode142167.mkv" } } } ] }'),
+
+
+
 keys = [
   # replicate the s3 notification msg format
   # %({ "Records": [ { "s3": { "object": { "key": "KEY GOES HERE WOW" } } } ] })

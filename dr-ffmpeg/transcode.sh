@@ -97,7 +97,6 @@ echo "$ffmpeg_output"
 if "$ffmpeg_return" -ne "0";
 then
   echo "Messed up ffmpeg... trying to record error output for $DRTRANSCODE_UID"
-  # mysql -h mysql -u root -p "" -e 'UPDATE jobs SET status=3,fail_reason="Exit ${ ffmpeg_return } - ${ ffmpeg_output }" WHERE uid="${ DRTRANSCODE_UID }"'
   
   # pipe error output to tempfile
   errorfilename="error-${DRTRANSCODE_UID}.txt"

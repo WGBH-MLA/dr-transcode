@@ -11,6 +11,13 @@ module JobStatus
   Failed = 3
 end
 
+module JobType
+  # default
+  CreateProxy = 0
+  StripLeftAudio = 1
+  StripRightAudio = 2
+end
+
 # load db..
 @client = Mysql2::Client.new(host: "mysql", username: "root", database: "drtranscode", password: "", port: 3306)
 
@@ -33,13 +40,19 @@ def key_from_sqs_message(msg)
 
   # need this to dispose of irrelevant bucket notifications
   unless body && body["Records"] && body["Records"].count > 0 && body["Records"][0]["s3"] && body["Records"][0]["s3"]["object"] && body["Records"][0]["s3"]["object"]["key"]
-
     puts "Message did not have correct parameters: #{msg}, skipping"
     return nil 
+  end 
+
+  if body["jobType"]
+    # if we received a job_type from message, send that fool in
+    return {receipt_handle: msg["ReceiptHandle"], key: body["Records"][0]["s3"]["object"]["key"], job_type: body["jobType"] }
+  else
+    # rec handle is for deleting this message when we're done with it
+    # default jobtype because bucket notifications obv do not include it
+    return {receipt_handle: msg["ReceiptHandle"], key: body["Records"][0]["s3"]["object"]["key"], job_type: JobType::CreateProxy}
   end
 
-  # rec handle is for deleting this message when we're done with it
-  return {receipt_handle: msg["ReceiptHandle"], key: body["Records"][0]["s3"]["object"]["key"]}
 rescue JSON::ParseError
   # nothin!
   return nil
@@ -70,21 +83,19 @@ def set_job_status(uid, new_status, fail_reason=nil)
   end
 end
 
-def validate_for_init(input_filepath)
+def validate_for_init(input_filepath, job_type)
   # check for jobs with SAME input key that DID NOT fail
-  results = @client.query(%(SELECT * FROM jobs WHERE input_filepath="#{input_filepath} AND status!=3"))
+  results = @client.query(%(SELECT * FROM jobs WHERE input_filepath="#{input_filepath} AND job_type=#{job_type} AND status!=3"))
   puts results.inspect
 
   # if theres no redundant job for this key, we're good to init the job
   results.count == 0
 end
 
-def validate_for_jobstart(uid, input_filepath)
-
-  output = get_file_info(input_filepath)
+def validate_for_jobstart(uid, job_type, input_filepath)
 
   # check that input file exists
-  unless check_file_exists(output)
+  unless check_file_exists(input_filepath)
     set_job_status(uid, JobStatus::Failed, "Input file #{input_filepath} was not found on Object Store...")
     return false
   end
@@ -99,16 +110,17 @@ def get_file_info(key)
  `aws --endpoint-url 'http://s3-bos.wgbh.org' s3api head-object --bucket nehdigitization --key #{key}`
 end
 
-def check_file_exists(s3_output)
+def check_file_exists(file)
+  s3_output = get_file_info(key)
   # ruby return value is "" for an s3 404
   s3_output && s3_output != ""
 end
 
-def init_job(input_filepath)
+def init_job(input_filepath, job_type=JobType::CreateProxy)
   # chck if job already started..
   # return if already found
   uid = SecureRandom.uuid
-  query = %(INSERT INTO jobs (uid, status, input_filepath) VALUES("#{uid}", #{JobStatus::Received}, "#{input_filepath}"))
+  query = %(INSERT INTO jobs (uid, status, input_filepath, job_type) VALUES("#{uid}", #{JobStatus::Received}, "#{input_filepath}", "#{job_type}"))
   puts query
   resp = @client.query(query)
   return uid
@@ -124,7 +136,9 @@ def begin_job(uid)
   input_folder = fp.dirname
   input_filename = fp.basename
 
-  pod_yml_content = %{
+  if job["job_type"] == JobType::CreateProxy
+
+    pod_yml_content = %{
 apiVersion: v1
 kind: Pod
 metadata:
@@ -152,7 +166,7 @@ spec:
         secretName: obstoresecrets
   containers:
     - name: dr-ffmpeg
-      image: mla-dockerhub.wgbh.org/dr-ffmpeg:123
+      image: mla-dockerhub.wgbh.org/dr-ffmpeg:125
       volumeMounts:
       - mountPath: /root/.aws
         name: obstoresecrets
@@ -170,20 +184,69 @@ spec:
         value: #{ get_output_filepath(input_filepath) }
       - name: DRTRANSCODE_OUTPUT_FILENAME
         value: #{ get_output_filepath(input_filepath).basename }
+  imagePullSecrets:
+      - name: mla-dockerhub
+  }
+  elsif job["job_type"] == JobType::StripLeftAudio  || job["job_type"] == JobType::StripRightAudio
+
+    # leave 'label' stuff the same so taht we can stick with one set of podaffinity rules
+    #  let the #{guid} part of the name include actual image name
+    # strip left or right audio channel
+    channel = job["job_type"] == JobType::StripRightAudio ? "R" : "L"
+
+    pod_yml_content = %{
+apiVersion: v1
+kind: Pod
+metadata:
+  name: dr-ffmpeg-audiosplit-#{uid}
+  namespace: dr-transcode
+  labels:
+    app: dr-ffmpeg
+spec:
+  affinity:
+    podAntiAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+      - labelSelector:
+          matchExpressions:
+          - key: app
+            operator: In
+            values:
+            - dr-ffmpeg
+        topologyKey: kubernetes.io/hostname
+        
+  volumes:
+    - name: obstoresecrets
+      secret:
+        defaultMode: 256
+        optional: false
+        secretName: obstoresecrets
+  containers:
+    - name: dr-ffmpeg
+      image: mla-dockerhub.wgbh.org/dr-ffmpeg-audiosplit:1
+      volumeMounts:
+      - mountPath: /root/.aws
+        name: obstoresecrets
+        readOnly: true
+      env:
       - name: DRTRANSCODE_UID
-        value: #{ uid }
+        value: #{uid}
+      - name: DRTRANSCODE_BUCKET
+        value: nehdigitization
+      - name: DRTRANSCODE_INPUT_KEY
+        value: #{ input_filepath }
+      - name: DRTRANSCODE_INPUT_FILENAME
+        value: #{ input_filename }
+      - name: DRTRANSCODE_AUDIOSPLIT_CHANNEL
+        value: #{ channel }
   imagePullSecrets:
       - name: mla-dockerhub
   }
 
+  end
+
   File.open('/root/pod.yml', 'w+') do |f|
     f << pod_yml_content
   end
-
-  # this was only a test
-  # puts "YEEEE HAWWW"
-  # number_ffmpeg_pods = `kubectl --kubeconfig=/mnt/kubectl-secret --namespace=dr-transcode get pods | awk '/dr-ffmpeg/ {print $1;exit}' | wc -l`
-  # puts number_ffmpeg_pods
 
   puts "I sure would like to start #{uid} for #{input_filename}!"
   puts `kubectl --kubeconfig /mnt/kubectl-secret --namespace=dr-transcode apply -f /root/pod.yml`
@@ -193,25 +256,30 @@ end
 # check if its time to LIVE
 # because this runs in a cron, regular config-mapped ENV vars are not available, so get it from filemount
 queue_url = File.read('/root/queueurl/DRTRANSCODE_QUEUE_URL')
+
+# either get the jobtype from the message here, or default it to CreateProxy if this is an auto bucket notification
 msgs = receive_sqs_messages( queue_url ).map {|m| key_from_sqs_message(m) }.compact
+
 puts "got SQS messages #{msgs}"
 if msgs && msgs[0]
   msgs.each do |message|
 
-    # input_filepath = JSON.parse(message.body)["input_filepath"]
     puts "GOT MESSAGE! #{message}"
+    job_type = message[:job_type]
     input_filepath = message[:key]
 
-    if validate_for_init(input_filepath)
+    # make sure there is not already a matching, unfailed job of this jobtype
+    if validate_for_init(input_filepath, job_type)
       puts "Here we go initting job"
-      uid = init_job(input_filepath)
+      uid = init_job(input_filepath, job_type)
 
-      if validate_for_jobstart(uid, input_filepath)
-        puts "Succeeded validation for job #{uid} key #{input_filepath} - job will begin shortly."
+      if validate_for_jobstart(uid, job_type, input_filepath)
+        # input file does exist!
+        puts "Succeeded validation for job #{uid} key #{input_filepath} job_type #{job_type} - job will begin shortly."
       end
 
     else
-      puts "Failed to initialize job for #{input_filepath} - nonfailed job(s) exist for this path."
+      puts "Failed to initialize job for #{input_filepath} of job_type #{job_type} - nonfailed job(s) exist for this path."
     end
   
     puts "Deleting processed SQS message #{message[:receipt_handle]}"
@@ -221,7 +289,7 @@ if msgs && msgs[0]
   end
 end
 
-# actually start jobs that we successfully initted above - limit 8 so we dont ask 'how many pods' a thousand times every cycle, but have enough of a buffer to get 4 new pods for any issues talking to kube
+# actually start jobs that we successfully initted above - limit 48 so we dont ask 'how many pods' a thousand times every cycle, but have enough of a buffer to get 4 new pods for any issues talking to kube
 jobs = @client.query("SELECT * FROM jobs WHERE status=#{JobStatus::Received} LIMIT 48")
 puts "Found #{jobs.count} jobs with JS::Received"
 jobs.each do |job|
@@ -252,15 +320,30 @@ jobs.each do |job|
   puts "Found JS::Working job #{job.inspect}, checking pod #{job["uid"]}"
   
   # delete the corresponding pod, work is done
-  output_filepath = get_output_filepath(job["input_filepath"])
-  puts "Now searching for output_filepath #{output_filepath}"
-  resp = `aws --endpoint-url 'http://s3-bos.wgbh.org' s3api head-object --bucket nehdigitization --key #{output_filepath}`
+
+  if job["job_type"] == JobType::CreateProxy
+
+    output_filepath = get_output_filepath(job["input_filepath"])
+    puts "CREATEPROXY CHECK:: Now searching for output_filepath #{output_filepath}"
+    resp = `aws --endpoint-url 'http://s3-bos.wgbh.org' s3api head-object --bucket nehdigitization --key #{output_filepath}`
+    # if output file is present, work completed succesfully
+    job_finished = !resp.empty?
+    puts "File #{output_filepath} was found on object store" if job_finished
+  elsif job["job_type"] == JobType::StripLeftAudio || job["job_type"] == JobType::StripRightAudio
+    donefilepath = get_donefile_filepath
+    puts "SPLITAUDIO CHECK:: Now searching for Done file #{donefilepath}"
+    resp = `aws --endpoint-url 'http://s3-bos.wgbh.org' s3api head-object --bucket nehdigitization --key #{donefilepath}`
+    # if done file is present, work completed successfully
+    job_finished = !resp.empty?
+    puts "Done File was found on object store" if job_finished
+  end
+
   puts "Got OBSTORE response #{resp} for #{job["uid"]}"
 
-  if !resp.empty?
+  if job_finished
     # head-object returns "" in this context when 404, otherwise gives a zesty pan-fried json message as a String
     
-    puts "File #{output_filepath} was found on object store - Attempting to delete pod dr-ffmpeg-#{job["uid"]}"
+    puts "Job Succeeded - Attempting to delete pod dr-ffmpeg-#{job["uid"]}"
     puts `kubectl --kubeconfig=/mnt/kubectl-secret --namespace=dr-transcode delete pod dr-ffmpeg-#{job["uid"]}`  
     set_job_status(job["uid"], JobStatus::CompletedWork)
   else
@@ -283,7 +366,8 @@ jobs.each do |job|
 end
 
 
-# CREATE TABLE jobs (uid varchar(255), status int, input_filepath varchar(1024), fail_reason varchar(1024, created_at datetime DEFAULT CURRENT_TIMESTAMP));
+# CREATE TABLE jobs (uid varchar(255), status int, input_filepath varchar(1024), fail_reason varchar(1024), created_at datetime DEFAULT CURRENT_TIMESTAMP), job_type int DEFAULT 0);
 
+# ALTER TABLE jobs ADD COLUMN job_type int DEFAULT 0
 # ALTER TABLE jobs ADD COLUMN created_at datetime DEFAULT CURRENT_TIMESTAMP
 
