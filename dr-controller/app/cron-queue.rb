@@ -104,6 +104,12 @@ def validate_for_jobstart(uid, job_type, input_filepath)
     return false
   end
 
+  if (job_type == JobType::StripLeftAudio || job_type == JobType::StripRightAudio) && !input_filepath.end_with?(".mp4")
+    # strip job only runs on proxy videos (already transcoded)
+    set_job_status(uid, JobStatus::Failed, "Input file #{input_filepath} for audio split job was not an mp4 file...")
+    return false
+  end
+
   # check that file not too big
   # TODO here we will read output as json... check ContentLength key for size bigness check
 
@@ -170,7 +176,7 @@ spec:
         secretName: obstoresecrets
   containers:
     - name: dr-ffmpeg
-      image: mla-dockerhub.wgbh.org/dr-ffmpeg:127 
+      image: mla-dockerhub.wgbh.org/dr-ffmpeg:128
       volumeMounts:
       - mountPath: /root/.aws
         name: obstoresecrets
@@ -226,7 +232,7 @@ spec:
         secretName: obstoresecrets
   containers:
     - name: dr-ffmpeg
-      image: mla-dockerhub.wgbh.org/dr-ffmpeg-audiosplit:127
+      image: mla-dockerhub.wgbh.org/dr-ffmpeg-audiosplit:128
       volumeMounts:
       - mountPath: /root/.aws
         name: obstoresecrets
