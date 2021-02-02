@@ -115,7 +115,7 @@ def get_file_info(key)
 end
 
 def check_file_exists(file)
-  s3_output = get_file_info(key)
+  s3_output = get_file_info(file)
   # ruby return value is "" for an s3 404
   s3_output && s3_output != ""
 end
@@ -170,7 +170,7 @@ spec:
         secretName: obstoresecrets
   containers:
     - name: dr-ffmpeg
-      image: mla-dockerhub.wgbh.org/dr-ffmpeg:126
+      image: mla-dockerhub.wgbh.org/dr-ffmpeg:127 
       volumeMounts:
       - mountPath: /root/.aws
         name: obstoresecrets
@@ -226,7 +226,7 @@ spec:
         secretName: obstoresecrets
   containers:
     - name: dr-ffmpeg
-      image: mla-dockerhub.wgbh.org/dr-ffmpeg-audiosplit:126
+      image: mla-dockerhub.wgbh.org/dr-ffmpeg-audiosplit:127
       volumeMounts:
       - mountPath: /root/.aws
         name: obstoresecrets
