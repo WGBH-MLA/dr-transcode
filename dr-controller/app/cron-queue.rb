@@ -77,6 +77,14 @@ def get_donefile_filepath(uid)
   %(dr-transcode-successes/success-#{uid}.txt)
 end
 
+def get_pod_name(uid, job_type)
+  if job_type == JobType::CreateProxy
+    %(dr-ffmpeg-#{uid})
+  elsif job_type == JobType::StripLeftAudio || job_type == JobType::StripRightAudio
+    %(dr-ffmpeg-audiosplit-#{uid})
+  end
+end
+
 def set_job_status(uid, new_status, fail_reason=nil)
   puts "Setting job status for #{uid} to #{new_status}"
   if fail_reason
@@ -351,11 +359,15 @@ jobs.each do |job|
 
   puts "Got OBSTORE response #{resp} for #{job["uid"]}"
 
+  pod_name = get_pod_name(job["uid"], job["job_type"])
+  # (now this is pod naming)
+
   if job_finished
     # head-object returns "" in this context when 404, otherwise gives a zesty pan-fried json message as a String
     
-    puts "Job Succeeded - Attempting to delete pod dr-ffmpeg-#{job["uid"]}"
-    puts `kubectl --kubeconfig=/mnt/kubectl-secret --namespace=dr-transcode delete pod dr-ffmpeg-#{job["uid"]}`  
+
+    puts "Job Succeeded - Attempting to delete pod #{pod_name}"
+    puts `kubectl --kubeconfig=/mnt/kubectl-secret --namespace=dr-transcode delete pod #{pod_name}`  
     set_job_status(job["uid"], JobStatus::CompletedWork)
   else
 
@@ -367,7 +379,7 @@ jobs.each do |job|
     # error file was found
     if !resp.empty?
       puts "Error detected on #{job["uid"]}, Going to kill container :("
-      puts `kubectl --kubeconfig=/mnt/kubectl-secret --namespace=dr-transcode delete pod dr-ffmpeg-#{job["uid"]}`  
+      puts `kubectl --kubeconfig=/mnt/kubectl-secret --namespace=dr-transcode delete pod #{pod_name}`  
       set_job_status(job["uid"], JobStatus::Failed, "Error file was found, failing")
     else 
       puts "Job #{job["uid"]} isnt done, keeeeeeeep going!"
