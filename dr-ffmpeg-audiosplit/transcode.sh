@@ -58,7 +58,7 @@ fi
 # # upload output file back to s3, overwriting input proxy (per rebecca)
 aws --endpoint-url 'http://s3-bos.wgbh.org' s3api put-object --bucket $DRTRANSCODE_BUCKET --key $DRTRANSCODE_INPUT_KEY --body ./split-$DRTRANSCODE_INPUT_FILENAME
 # # write done file to s3
-aws --endpoint-url 'http://s3-bos.wgbh.org' s3api put-object --bucket $DRTRANSCODE_BUCKET --key $DRTRANSCODE_DONEFILE_KEY --body "great job"
+aws --endpoint-url 'http://s3-bos.wgbh.org' s3api put-object --bucket $DRTRANSCODE_BUCKET --key dr-transcode-successes/success-$DRTRANSCODE_UID.txt --body "great job"
 
 # add public acl to de file
 aws --endpoint-url 'http://s3-bos.wgbh.org' s3api put-object-acl --bucket $DRTRANSCODE_BUCKET --key $DRTRANSCODE_INPUT_KEY --acl public-read
