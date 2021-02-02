@@ -73,6 +73,10 @@ def get_errortxt_filepath(uid)
   %(dr-transcode-errors/error-#{uid}.txt)
 end
 
+def get_donefile_filepath(uid)
+  %(dr-transcode-successes/success-#{uid}.txt)
+end
+
 def set_job_status(uid, new_status, fail_reason=nil)
   puts "Setting job status for #{uid} to #{new_status}"
   if fail_reason
@@ -330,7 +334,8 @@ jobs.each do |job|
     job_finished = !resp.empty?
     puts "File #{output_filepath} was found on object store" if job_finished
   elsif job["job_type"] == JobType::StripLeftAudio || job["job_type"] == JobType::StripRightAudio
-    donefilepath = get_donefile_filepath
+
+    donefilepath = get_donefile_filepath(job["uid"])
     puts "SPLITAUDIO CHECK:: Now searching for Done file #{donefilepath}"
     resp = `aws --endpoint-url 'http://s3-bos.wgbh.org' s3api head-object --bucket nehdigitization --key #{donefilepath}`
     # if done file is present, work completed successfully
@@ -353,9 +358,9 @@ jobs.each do |job|
     errortxt_filepath = get_errortxt_filepath(job["uid"])
     resp = `aws --endpoint-url 'http://s3-bos.wgbh.org' s3api head-object --bucket nehdigitization --key #{errortxt_filepath}`
 
+    # error file was found
     if !resp.empty?
       puts "Error detected on #{job["uid"]}, Going to kill container :("
-      # theres not as simple of a way to indicate job failure, stick with this
       puts `kubectl --kubeconfig=/mnt/kubectl-secret --namespace=dr-transcode delete pod dr-ffmpeg-#{job["uid"]}`  
       set_job_status(job["uid"], JobStatus::Failed, "Error file was found, failing")
     else 
@@ -368,6 +373,7 @@ end
 
 # CREATE TABLE jobs (uid varchar(255), status int, input_filepath varchar(1024), fail_reason varchar(1024), created_at datetime DEFAULT CURRENT_TIMESTAMP), job_type int DEFAULT 0);
 
+# moving car
 # ALTER TABLE jobs ADD COLUMN job_type int DEFAULT 0
 # ALTER TABLE jobs ADD COLUMN created_at datetime DEFAULT CURRENT_TIMESTAMP
 

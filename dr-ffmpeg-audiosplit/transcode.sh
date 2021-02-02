@@ -1,5 +1,5 @@
 function done_file_exists {
-  donefilename="dr-transcode-errors/success-${DRTRANSCODE_UID}.txt"
+  donefilename="dr-transcode-successes/success-${DRTRANSCODE_UID}.txt"
   aws --endpoint-url 'http://s3-bos.wgbh.org' s3api head-object --bucket $DRTRANSCODE_BUCKET --key $donefilename &> /dev/null
 }
 
