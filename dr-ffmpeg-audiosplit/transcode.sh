@@ -12,7 +12,7 @@ function error_file_exists {
 cd /root
 
 # exit
-[ -z "$DRTRANSCODE_UID" ] && [ -z "$DRTRANSCODE_BUCKET" ] && [ -z "$DRTRANSCODE_INPUT_KEY" ] && [ -z "$DRTRANSCODE_INPUT_FILENAME" ] && [ -z "$DRTRANSCODE_AUDIOSPLIT_CHANNEL"] && echo "Missing DRTRANSCODE env variables, bye bye!" && exit 1
+[ -z "$DRTRANSCODE_UID" ] && [ -z "$DRTRANSCODE_BUCKET" ] && [ -z "$DRTRANSCODE_INPUT_KEY" ] && [ -z "$DRTRANSCODE_INPUT_FILENAME" ] && [ -z "$DRTRANSCODE_PRESERVE_AUDIO_CHANNEL"] && echo "Missing DRTRANSCODE env variables, bye bye!" && exit 1
 
 # need to get nonzero code from this in order to proceed
 if done_file_exists;
@@ -35,7 +35,7 @@ aws --endpoint-url 'http://s3-bos.wgbh.org' s3api get-object --bucket $DRTRANSCO
 # mp4 extension in output filename will correctly wrap aac in mp4 container
 # AUDIOSPLIT param is L or R, below specifies mono output, made from 'FL' or 'FR'
 # create output as "split-#{inputfilename}"
-ffmpeg_output=$( ffmpeg -i $DRTRANSCODE_INPUT_FILENAME -af "pan=mono|c0=F$DRTRANSCODE_AUDIOSPLIT_CHANNEL" -vcodec libx264 -pix_fmt yuv420p -b:v 711k -s 640:360 -acodec aac -ac 1 split-$DRTRANSCODE_INPUT_FILENAME 2>&1 )
+ffmpeg_output=$( ffmpeg -i $DRTRANSCODE_INPUT_FILENAME -af "pan=mono|c0=F$DRTRANSCODE_PRESERVE_AUDIO_CHANNEL" -vcodec libx264 -pix_fmt yuv420p -b:v 711k -s 640:360 -acodec aac -ac 1 split-$DRTRANSCODE_INPUT_FILENAME 2>&1 )
 
 ffmpeg_return="${PIPESTATUS[0]}"
 

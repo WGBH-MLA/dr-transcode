@@ -184,7 +184,7 @@ spec:
         secretName: obstoresecrets
   containers:
     - name: dr-ffmpeg
-      image: mla-dockerhub.wgbh.org/dr-ffmpeg:131
+      image: mla-dockerhub.wgbh.org/dr-ffmpeg:132
       volumeMounts:
       - mountPath: /root/.aws
         name: obstoresecrets
@@ -240,7 +240,7 @@ spec:
         secretName: obstoresecrets
   containers:
     - name: dr-ffmpeg
-      image: mla-dockerhub.wgbh.org/dr-ffmpeg-audiosplit:131
+      image: mla-dockerhub.wgbh.org/dr-ffmpeg-audiosplit:132
       volumeMounts:
       - mountPath: /root/.aws
         name: obstoresecrets
@@ -254,7 +254,7 @@ spec:
         value: #{ input_filepath }
       - name: DRTRANSCODE_INPUT_FILENAME
         value: #{ input_filename }
-      - name: DRTRANSCODE_AUDIOSPLIT_CHANNEL
+      - name: DRTRANSCODE_PRESERVE_AUDIO_CHANNEL
         value: #{ channel }
   imagePullSecrets:
       - name: mla-dockerhub
