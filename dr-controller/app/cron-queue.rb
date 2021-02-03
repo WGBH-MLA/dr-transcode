@@ -14,8 +14,8 @@ end
 module JobType
   # default
   CreateProxy = 0
-  StripLeftAudio = 1
-  StripRightAudio = 2
+  PreserveLeftAudio = 1
+  PreserveRightAudio = 2
 end
 
 # load db..
@@ -80,7 +80,7 @@ end
 def get_pod_name(uid, job_type)
   if job_type == JobType::CreateProxy
     %(dr-ffmpeg-#{uid})
-  elsif job_type == JobType::StripLeftAudio || job_type == JobType::StripRightAudio
+  elsif job_type == JobType::PreserveLeftAudio || job_type == JobType::PreserveRightAudio
     %(dr-ffmpeg-audiosplit-#{uid})
   end
 end
@@ -112,9 +112,9 @@ def validate_for_jobstart(uid, job_type, input_filepath)
     return false
   end
 
-  if (job_type == JobType::StripLeftAudio || job_type == JobType::StripRightAudio) && !input_filepath.end_with?(".mp4")
+  if (job_type == JobType::PreserveLeftAudio || job_type == JobType::PreserveRightAudio) && !input_filepath.end_with?(".mp4")
     # strip job only runs on proxy videos (already transcoded)
-    set_job_status(uid, JobStatus::Failed, "Input file #{input_filepath} for audio split job was not an mp4 file...")
+    set_job_status(uid, JobStatus::Failed, "Input file #{input_filepath} for audio preserve job was not an mp4 file...")
     return false
   end
 
@@ -184,7 +184,7 @@ spec:
         secretName: obstoresecrets
   containers:
     - name: dr-ffmpeg
-      image: mla-dockerhub.wgbh.org/dr-ffmpeg:134
+      image: mla-dockerhub.wgbh.org/dr-ffmpeg:135
       volumeMounts:
       - mountPath: /root/.aws
         name: obstoresecrets
@@ -205,12 +205,12 @@ spec:
   imagePullSecrets:
       - name: mla-dockerhub
   }
-  elsif job["job_type"] == JobType::StripLeftAudio  || job["job_type"] == JobType::StripRightAudio
+  elsif job["job_type"] == JobType::PreserveLeftAudio  || job["job_type"] == JobType::PreserveRightAudio
 
     # leave 'label' stuff the same so taht we can stick with one set of podaffinity rules
     #  let the #{guid} part of the name include actual image name
     # strip left or right audio channel
-    channel = job["job_type"] == JobType::StripRightAudio ? "R" : "L"
+    channel = job["job_type"] == JobType::PreserveRightAudio ? "R" : "L"
 
     pod_yml_content = %{
 apiVersion: v1
@@ -240,7 +240,7 @@ spec:
         secretName: obstoresecrets
   containers:
     - name: dr-ffmpeg
-      image: mla-dockerhub.wgbh.org/dr-ffmpeg-audiosplit:134
+      image: mla-dockerhub.wgbh.org/dr-ffmpeg-audiosplit:135
       volumeMounts:
       - mountPath: /root/.aws
         name: obstoresecrets
@@ -347,10 +347,10 @@ jobs.each do |job|
     # if output file is present, work completed succesfully
     job_finished = !resp.empty?
     puts "File #{output_filepath} was found on object store" if job_finished
-  elsif job["job_type"] == JobType::StripLeftAudio || job["job_type"] == JobType::StripRightAudio
+  elsif job["job_type"] == JobType::PreserveLeftAudio || job["job_type"] == JobType::PreserveRightAudio
 
     donefilepath = get_donefile_filepath(job["uid"])
-    puts "SPLITAUDIO CHECK:: Now searching for Done file #{donefilepath}"
+    puts "PRESERVEAUDIO CHECK:: Now searching for Done file #{donefilepath}"
     resp = `aws --endpoint-url 'http://s3-bos.wgbh.org' s3api head-object --bucket nehdigitization --key #{donefilepath}`
     # if done file is present, work completed successfully
     job_finished = !resp.empty?
