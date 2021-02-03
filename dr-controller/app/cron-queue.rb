@@ -184,7 +184,7 @@ spec:
         secretName: obstoresecrets
   containers:
     - name: dr-ffmpeg
-      image: mla-dockerhub.wgbh.org/dr-ffmpeg:133
+      image: mla-dockerhub.wgbh.org/dr-ffmpeg:134
       volumeMounts:
       - mountPath: /root/.aws
         name: obstoresecrets
@@ -240,7 +240,7 @@ spec:
         secretName: obstoresecrets
   containers:
     - name: dr-ffmpeg
-      image: mla-dockerhub.wgbh.org/dr-ffmpeg-audiosplit:133
+      image: mla-dockerhub.wgbh.org/dr-ffmpeg-audiosplit:134
       volumeMounts:
       - mountPath: /root/.aws
         name: obstoresecrets
