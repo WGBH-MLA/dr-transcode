@@ -184,10 +184,10 @@ spec:
         secretName: obstoresecrets
   containers:
     - name: dr-ffmpeg
-      image: mla-dockerhub.wgbh.org/dr-ffmpeg:135
+      image: mla-dockerhub.wgbh.org/dr-ffmpeg:136
       resources:
         limits:
-          memory: "5000M"
+          memory: "5000Mi"
           cpu: "5000m"      
       volumeMounts:
       - mountPath: /root/.aws
@@ -244,11 +244,11 @@ spec:
         secretName: obstoresecrets
   containers:
     - name: dr-ffmpeg
-      image: mla-dockerhub.wgbh.org/dr-ffmpeg-audiosplit:135
+      image: mla-dockerhub.wgbh.org/dr-ffmpeg-audiosplit:136
       resources:
         limits:
-          memory: "5000M"
-          cpu: "5000m"
+          memory: "5000Mi"
+          cpu: "5000m" 
       volumeMounts:
       - mountPath: /root/.aws
         name: obstoresecrets
