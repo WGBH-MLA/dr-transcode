@@ -5,9 +5,12 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install --force-yes
 RUN curl -LO https://storage.googleapis.com/kubernetes-release/release/`curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt`/bin/linux/amd64/kubectl && chmod +x ./kubectl && mv ./kubectl /usr/local/bin/kubectl
 
 WORKDIR /root
-COPY queue-cron /root/queue-cron
-RUN chmod 0644 /root/queue-cron
-RUN crontab /root/queue-cron
+
+# COPY queue-cron /root/queue-cron
+# RUN chmod 0644 /root/queue-cron
+# RUN crontab /root/queue-cron
+
+COPY queue-cron /var/spool/cron/crontabs/root
 RUN touch /var/log/queue-cron.log
 
 ADD app/ app/

@@ -35,22 +35,25 @@ def receive_sqs_messages(queue_url)
   return msgs["Messages"]
 end
 
-def key_from_sqs_message(msg)
+def job_info_from_sqs_message(msg)
   body = JSON.parse( msg["Body"] )
 
   # need this to dispose of irrelevant bucket notifications
-  unless body && body["Records"] && body["Records"].count > 0 && body["Records"][0]["s3"] && body["Records"][0]["s3"]["object"] && body["Records"][0]["s3"]["object"]["key"]
+  unless body && body["Records"] && body["Records"].count > 0 && body["Records"][0]["s3"] && body["Records"][0]["s3"]["object"] && body["Records"][0]["s3"]["object"]["key"] && body["Records"][0]["s3"]["bucket"] && body["Records"][0]["s3"]["bucket"]["name"]
     puts "Message did not have correct parameters: #{msg}, skipping"
     return nil 
-  end 
+  end
+
+  input_bucketname = body["Records"][0]["s3"]["bucket"]["name"]
+  input_key = body["Records"][0]["s3"]["object"]["key"]
 
   if body["jobType"]
     # if we received a job_type from message, send that fool in
-    return {receipt_handle: msg["ReceiptHandle"], key: body["Records"][0]["s3"]["object"]["key"], job_type: body["jobType"] }
+    return {receipt_handle: msg["ReceiptHandle"], bucket: input_bucketname, key: input_key, job_type: body["jobType"] }
   else
     # rec handle is for deleting this message when we're done with it
     # default jobtype because bucket notifications obv do not include it
-    return {receipt_handle: msg["ReceiptHandle"], key: body["Records"][0]["s3"]["object"]["key"], job_type: JobType::CreateProxy}
+    return {receipt_handle: msg["ReceiptHandle"], bucket: input_bucketname, key: input_key, job_type: JobType::CreateProxy}
   end
 
 rescue JSON::ParseError
@@ -62,18 +65,19 @@ def delete_sqs_message(queue_url, handle)
   `aws --region region1 --endpoint-url 'http://s3-sqs.wgbh.org:18090/' sqs delete-message --queue-url #{queue_url} --receipt-handle #{handle}`
 end
 
-
-def get_output_filepath(input_filepath)
-  fp = Pathname.new(input_filepath)
+def get_output_key(input_bucketname, input_key)
+  fp = Pathname.new(input_bucketname + '/' + input_key)
   # audio and video files are both wrapped in mp4 containers for avalon purposes
   fp.sub_ext('.mp4')
 end
 
 def get_errortxt_filepath(uid)
+  # this is a folder of error files, marking the failure of a job, and containing the full stdout/err from the job itself
   %(dr-transcode-errors/error-#{uid}.txt)
 end
 
 def get_donefile_filepath(uid)
+  # this is a folder of empty files, marking the success of an audiosplit job
   %(dr-transcode-successes/success-#{uid}.txt)
 end
 
@@ -95,19 +99,19 @@ def set_job_status(uid, new_status, fail_reason=nil)
   end
 end
 
-def validate_for_init(input_filepath, job_type)
+def validate_for_init(input_bucketname, input_filepath, job_type)
   # check for jobs with SAME input key that DID NOT fail
-  results = @client.query(%(SELECT * FROM jobs WHERE input_filepath="#{input_filepath} AND job_type=#{job_type} AND status!=3"))
+  results = @client.query(%(SELECT * FROM jobs WHERE input_bucketname="#{input_bucketname}" AND input_filepath="#{input_filepath} AND job_type=#{job_type} AND status!=3"))
   puts results.inspect
 
   # if theres no redundant job for this key, we're good to init the job
   results.count == 0
 end
 
-def validate_for_jobstart(uid, job_type, input_filepath)
+def validate_for_jobstart(uid, job_type, input_bucketname,  input_filepath)
 
   # check that input file exists
-  unless check_file_exists(input_filepath)
+  unless check_file_exists(input_bucketname, input_filepath)
     set_job_status(uid, JobStatus::Failed, "Input file #{input_filepath} was not found on Object Store...")
     return false
   end
@@ -124,12 +128,12 @@ def validate_for_jobstart(uid, job_type, input_filepath)
   true
 end
 
-def get_file_info(key)
- `aws --endpoint-url 'http://s3-bos.wgbh.org' s3api head-object --bucket nehdigitization --key #{key}`
+def get_file_info(bucket, key)
+ `aws --endpoint-url 'http://s3-bos.wgbh.org' s3api head-object --bucket #{bucket} --key #{key}`
 end
 
-def check_file_exists(file)
-  s3_output = get_file_info(file)
+def check_file_exists(bucket, file)
+  s3_output = get_file_info(bucket, file)
   # ruby return value is "" for an s3 404
   s3_output && s3_output != ""
 end
@@ -149,6 +153,7 @@ def begin_job(uid)
   puts job.inspect
   
   input_filepath = job["input_filepath"]
+  input_bucketname = job["input_bucketname"]
 
   fp = Pathname.new(input_filepath)
   input_folder = fp.dirname
@@ -184,7 +189,7 @@ spec:
         secretName: obstoresecrets
   containers:
     - name: dr-ffmpeg
-      image: mla-dockerhub.wgbh.org/dr-ffmpeg:136
+      image: mla-dockerhub.wgbh.org/dr-ffmpeg:137
       resources:
         limits:
           memory: "5000Mi"
@@ -196,16 +201,12 @@ spec:
       env:
       - name: DRTRANSCODE_UID
         value: #{uid}
-      - name: DRTRANSCODE_BUCKET
-        value: nehdigitization
+      - name: DRTRANSCODE_INPUT_BUCKET
+        value: #{ input_bucketname }
       - name: DRTRANSCODE_INPUT_KEY
         value: #{ input_filepath }
-      - name: DRTRANSCODE_INPUT_FILENAME
-        value: #{ input_filename }
-      - name: DRTRANSCODE_OUTPUT_KEY
-        value: #{ get_output_filepath(input_filepath) }
-      - name: DRTRANSCODE_OUTPUT_FILENAME
-        value: #{ get_output_filepath(input_filepath).basename }
+      - name: DRTRANSCODE_OUTPUT_BUCKET
+        value: streaming-proxies
   imagePullSecrets:
       - name: mla-dockerhub
   }
@@ -244,7 +245,7 @@ spec:
         secretName: obstoresecrets
   containers:
     - name: dr-ffmpeg
-      image: mla-dockerhub.wgbh.org/dr-ffmpeg-audiosplit:136
+      image: mla-dockerhub.wgbh.org/dr-ffmpeg-audiosplit:137
       resources:
         limits:
           memory: "5000Mi"
@@ -256,12 +257,12 @@ spec:
       env:
       - name: DRTRANSCODE_UID
         value: #{uid}
-      - name: DRTRANSCODE_BUCKET
-        value: nehdigitization
+      - name: DRTRANSCODE_INPUT_BUCKET
+        value: #{ input_bucketname }
       - name: DRTRANSCODE_INPUT_KEY
         value: #{ input_filepath }
-      - name: DRTRANSCODE_INPUT_FILENAME
-        value: #{ input_filename }
+      - name: DRTRANSCODE_OUTPUT_BUCKET
+        value: streaming-proxies
       - name: DRTRANSCODE_PRESERVE_AUDIO_CHANNEL
         value: #{ channel }
   imagePullSecrets:
@@ -284,7 +285,7 @@ end
 queue_url = File.read('/root/queueurl/DRTRANSCODE_QUEUE_URL')
 
 # either get the jobtype from the message here, or default it to CreateProxy if this is an auto bucket notification
-msgs = receive_sqs_messages( queue_url ).map {|m| key_from_sqs_message(m) }.compact
+msgs = receive_sqs_messages( queue_url ).map {|m| job_info_from_sqs_message(m) }.compact
 
 puts "got SQS messages #{msgs}"
 if msgs && msgs[0]
@@ -293,13 +294,14 @@ if msgs && msgs[0]
     puts "GOT MESSAGE! #{message}"
     job_type = message[:job_type]
     input_filepath = message[:key]
+    input_bucketname = message[:bucket]
 
     # make sure there is not already a matching, unfailed job of this jobtype
-    if validate_for_init(input_filepath, job_type)
+    if validate_for_init(input_bucketname, input_filepath, job_type)
       puts "Here we go initting job"
       uid = init_job(input_filepath, job_type)
 
-      if validate_for_jobstart(uid, job_type, input_filepath)
+      if validate_for_jobstart(uid, job_type, input_bucketname, input_filepath)
         # input file does exist!
         puts "Succeeded validation for job #{uid} key #{input_filepath} job_type #{job_type} - job will begin shortly."
       end
@@ -349,9 +351,9 @@ jobs.each do |job|
 
   if job["job_type"] == JobType::CreateProxy
 
-    output_filepath = get_output_filepath(job["input_filepath"])
-    puts "CREATEPROXY CHECK:: Now searching for output_filepath #{output_filepath}"
-    resp = `aws --endpoint-url 'http://s3-bos.wgbh.org' s3api head-object --bucket nehdigitization --key #{output_filepath}`
+    output_key = get_output_key(job["input_filepath"])
+    puts "CREATEPROXY CHECK:: Now searching for output_key #{output_key}"
+    resp = `aws --endpoint-url 'http://s3-bos.wgbh.org' s3api head-object --bucket streaming-proxies --key #{output_key}`
     # if output file is present, work completed succesfully
     job_finished = !resp.empty?
     puts "File #{output_filepath} was found on object store" if job_finished
@@ -359,7 +361,7 @@ jobs.each do |job|
 
     donefilepath = get_donefile_filepath(job["uid"])
     puts "PRESERVEAUDIO CHECK:: Now searching for Done file #{donefilepath}"
-    resp = `aws --endpoint-url 'http://s3-bos.wgbh.org' s3api head-object --bucket nehdigitization --key #{donefilepath}`
+    resp = `aws --endpoint-url 'http://s3-bos.wgbh.org' s3api head-object --bucket streaming-proxies --key #{donefilepath}`
     # if done file is present, work completed successfully
     job_finished = !resp.empty?
     puts "Done File was found on object store" if job_finished
@@ -372,8 +374,6 @@ jobs.each do |job|
 
   if job_finished
     # head-object returns "" in this context when 404, otherwise gives a zesty pan-fried json message as a String
-    
-
     puts "Job Succeeded - Attempting to delete pod #{pod_name}"
     puts `kubectl --kubeconfig=/mnt/kubectl-secret --namespace=dr-transcode delete pod #{pod_name}`  
     set_job_status(job["uid"], JobStatus::CompletedWork)
@@ -382,7 +382,7 @@ jobs.each do |job|
     # check for error file...
     puts "Checking for error file on #{job["uid"]}"
     errortxt_filepath = get_errortxt_filepath(job["uid"])
-    resp = `aws --endpoint-url 'http://s3-bos.wgbh.org' s3api head-object --bucket nehdigitization --key #{errortxt_filepath}`
+    resp = `aws --endpoint-url 'http://s3-bos.wgbh.org' s3api head-object --bucket streaming-proxies --key #{errortxt_filepath}`
 
     # error file was found
     if !resp.empty?
@@ -397,9 +397,11 @@ jobs.each do |job|
 end
 
 
-# CREATE TABLE jobs (uid varchar(255), status int, input_filepath varchar(1024), fail_reason varchar(1024), created_at datetime DEFAULT CURRENT_TIMESTAMP), job_type int DEFAULT 0);
+# CREATE TABLE jobs (uid varchar(255), status int, input_filepath varchar(1024), fail_reason varchar(1024), created_at datetime DEFAULT CURRENT_TIMESTAMP), job_type int DEFAULT 0, input_bucketname varchar(1024));
 
 # moving car
 # ALTER TABLE jobs ADD COLUMN job_type int DEFAULT 0
 # ALTER TABLE jobs ADD COLUMN created_at datetime DEFAULT CURRENT_TIMESTAMP
+
+# ALTER TABLE jobs ADD COLUMN input_bucketname varchar(1024);
 
