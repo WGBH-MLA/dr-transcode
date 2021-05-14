@@ -142,7 +142,7 @@ def init_job(input_bucketname, input_filepath, job_type=JobType::CreateProxy)
   # chck if job already started..
   # return if already found
   uid = SecureRandom.uuid
-  query = %(INSERT INTO jobs (uid, status, input_filepath, job_type, input_bucketname) VALUES("#{uid}", #{JobStatus::Received}, "#{input_filepath}", "#{job_type}", #{input_bucketname}))
+  query = %(INSERT INTO jobs (uid, status, input_filepath, job_type, input_bucketname) VALUES("#{uid}", #{JobStatus::Received}, "#{input_filepath}", "#{job_type}", "#{input_bucketname}"))
   puts query
   resp = @client.query(query)
   return uid
