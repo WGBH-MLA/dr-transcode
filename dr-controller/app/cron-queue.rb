@@ -112,13 +112,13 @@ def validate_for_jobstart(uid, job_type, input_bucketname,  input_filepath)
 
   # check that input file exists
   unless check_file_exists(input_bucketname, input_filepath)
-    set_job_status(uid, JobStatus::Failed, "Input file #{input_filepath} was not found on Object Store...")
+    set_job_status(uid, JobStatus::Failed, "Input file #{input_filepath} in bucket #{input_bucketname} was not found on Object Store...")
     return false
   end
 
   if (job_type == JobType::PreserveLeftAudio || job_type == JobType::PreserveRightAudio) && !input_filepath.end_with?(".mp4")
     # strip job only runs on proxy videos (already transcoded)
-    set_job_status(uid, JobStatus::Failed, "Input file #{input_filepath} for audio preserve job was not an mp4 file...")
+    set_job_status(uid, JobStatus::Failed, "Input file #{input_filepath} in bucket #{input_bucketname} for audio preserve job was not an mp4 file...")
     return false
   end
 
@@ -303,11 +303,11 @@ if msgs && msgs[0]
 
       if validate_for_jobstart(uid, job_type, input_bucketname, input_filepath)
         # input file does exist!
-        puts "Succeeded validation for job #{uid} key #{input_filepath} job_type #{job_type} - job will begin shortly."
+        puts "Succeeded validation for job #{uid} key #{input_filepath} in bucket #{input_bucketname} with job_type #{job_type} - job will begin shortly."
       end
 
     else
-      puts "Failed to initialize job for #{input_filepath} of job_type #{job_type} - nonfailed job(s) exist for this path."
+      puts "Failed to initialize job for #{input_filepath} in bucket #{input_bucketname} of job_type #{job_type} - nonfailed job(s) exist for this path."
     end
   
     puts "Deleting processed SQS message #{message[:receipt_handle]}"
@@ -351,7 +351,7 @@ jobs.each do |job|
 
   if job["job_type"] == JobType::CreateProxy
 
-    output_key = get_output_key(job["input_filepath"])
+    output_key = get_output_key(job["input_bucketname"], job["input_filepath"])
     puts "CREATEPROXY CHECK:: Now searching for output_key #{output_key}"
     resp = `aws --endpoint-url 'http://s3-bos.wgbh.org' s3api head-object --bucket streaming-proxies --key #{output_key}`
     # if output file is present, work completed succesfully
