@@ -1,4 +1,4 @@
-FROM ruby:2.7
+FROM ruby:2.7.3
 
 # groff is a dependency that screws up awscli install without 'failing' install
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install --force-yes  -y1 groff awscli curl cron vim
