@@ -138,11 +138,11 @@ def check_file_exists(bucket, file)
   s3_output && s3_output != ""
 end
 
-def init_job(input_filepath, job_type=JobType::CreateProxy)
+def init_job(input_bucketname, input_filepath, job_type=JobType::CreateProxy)
   # chck if job already started..
   # return if already found
   uid = SecureRandom.uuid
-  query = %(INSERT INTO jobs (uid, status, input_filepath, job_type) VALUES("#{uid}", #{JobStatus::Received}, "#{input_filepath}", "#{job_type}"))
+  query = %(INSERT INTO jobs (uid, status, input_filepath, job_type, input_bucketname) VALUES("#{uid}", #{JobStatus::Received}, "#{input_filepath}", "#{job_type}", #{input_bucketname}))
   puts query
   resp = @client.query(query)
   return uid
@@ -189,7 +189,7 @@ spec:
         secretName: obstoresecrets
   containers:
     - name: dr-ffmpeg
-      image: mla-dockerhub.wgbh.org/dr-ffmpeg:149
+      image: mla-dockerhub.wgbh.org/dr-ffmpeg:141
       resources:
         limits:
           memory: "5000Mi"
@@ -245,7 +245,7 @@ spec:
         secretName: obstoresecrets
   containers:
     - name: dr-ffmpeg
-      image: mla-dockerhub.wgbh.org/dr-ffmpeg-audiosplit:140
+      image: mla-dockerhub.wgbh.org/dr-ffmpeg-audiosplit:141
       resources:
         limits:
           memory: "5000Mi"
@@ -299,7 +299,7 @@ if msgs && msgs[0]
     # make sure there is not already a matching, unfailed job of this jobtype
     if validate_for_init(input_bucketname, input_filepath, job_type)
       puts "Here we go initting job"
-      uid = init_job(input_filepath, job_type)
+      uid = init_job(input_bucketname, input_filepath, job_type)
 
       if validate_for_jobstart(uid, job_type, input_bucketname, input_filepath)
         # input file does exist!
@@ -395,7 +395,6 @@ jobs.each do |job|
 
   end
 end
-
 
 # CREATE TABLE jobs (uid varchar(255), status int, input_filepath varchar(1024), fail_reason varchar(1024), created_at datetime DEFAULT CURRENT_TIMESTAMP), job_type int DEFAULT 0, input_bucketname varchar(1024));
 
