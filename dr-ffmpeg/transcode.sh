@@ -17,10 +17,11 @@ cd /root
 
 # need to get nonzero code from this in order to proceed
 
-
 echo "Building expected output filename..."
+# just filename without path
 filename=$(basename -- "$DRTRANSCODE_INPUT_KEY")
-filename_no_ext=$(basename -- "$DRTRANSCODE_INPUT_KEY" .dv .mkv .mov .wav)
+# chop that ext off baby
+filename_no_ext=$(echo "$filename" | cut -f 1 -d '.' )
 
 local_input_filepath=/root/"$filename"
 mp4filename="$filename_no_ext".mp4
