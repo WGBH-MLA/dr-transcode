@@ -189,7 +189,7 @@ spec:
         secretName: obstoresecrets
   containers:
     - name: dr-ffmpeg
-      image: mla-dockerhub.wgbh.org/dr-ffmpeg:145
+      image: mla-dockerhub.wgbh.org/dr-ffmpeg:146
       resources:
         limits:
           memory: "5000Mi"
@@ -245,7 +245,7 @@ spec:
         secretName: obstoresecrets
   containers:
     - name: dr-ffmpeg
-      image: mla-dockerhub.wgbh.org/dr-ffmpeg-audiosplit:145
+      image: mla-dockerhub.wgbh.org/dr-ffmpeg-audiosplit:146
       resources:
         limits:
           memory: "5000Mi"
@@ -356,7 +356,7 @@ jobs.each do |job|
     resp = `aws --endpoint-url 'http://s3-bos.wgbh.org' s3api head-object --bucket streaming-proxies --key #{output_key}`
     # if output file is present, work completed succesfully
     job_finished = !resp.empty?
-    puts "File #{output_filepath} was found on object store" if job_finished
+    puts "File #{output_key} was found on object store" if job_finished
   elsif job["job_type"] == JobType::PreserveLeftAudio || job["job_type"] == JobType::PreserveRightAudio
 
     donefilepath = get_donefile_filepath(job["uid"])
