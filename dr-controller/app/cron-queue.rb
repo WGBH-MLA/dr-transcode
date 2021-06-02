@@ -333,7 +333,7 @@ jobs.each do |job|
   end
 
   puts "There are #{number_ffmpeg_pods} running right now..."
-  if number_ffmpeg_pods.to_i < 1
+  if number_ffmpeg_pods.to_i < 2
 
     puts "Ooh yeah - I'm starting #{job["uid"]}!"
     begin_job(job["uid"])
