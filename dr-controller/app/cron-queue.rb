@@ -189,7 +189,7 @@ spec:
         secretName: obstoresecrets
   containers:
     - name: dr-ffmpeg
-      image: mla-dockerhub.wgbh.org/dr-ffmpeg:148
+      image: mla-dockerhub.wgbh.org/dr-ffmpeg:149
       resources:
         limits:
           memory: "2000Mi"
@@ -245,7 +245,7 @@ spec:
         secretName: obstoresecrets
   containers:
     - name: dr-ffmpeg
-      image: mla-dockerhub.wgbh.org/dr-ffmpeg-audiosplit:148
+      image: mla-dockerhub.wgbh.org/dr-ffmpeg-audiosplit:149
       resources:
         limits:
           memory: "2000Mi"
@@ -370,7 +370,7 @@ jobs.each do |job|
   puts "Got OBSTORE response #{resp} for #{job["uid"]}"
 
   pod_name = get_pod_name(job["uid"], job["job_type"])
-  # (now this is pod naming)
+  # (now *this* is pod naming)
 
   if job_finished
     # head-object returns "" in this context when 404, otherwise gives a zesty pan-fried json message as a String
