@@ -189,7 +189,7 @@ spec:
         secretName: obstoresecrets
   containers:
     - name: dr-ffmpeg
-      image: mla-dockerhub.wgbh.org/dr-ffmpeg:149
+      image: mla-dockerhub.wgbh.org/dr-ffmpeg:150
       resources:
         limits:
           memory: "2000Mi"
@@ -245,7 +245,7 @@ spec:
         secretName: obstoresecrets
   containers:
     - name: dr-ffmpeg
-      image: mla-dockerhub.wgbh.org/dr-ffmpeg-audiosplit:149
+      image: mla-dockerhub.wgbh.org/dr-ffmpeg-audiosplit:150
       resources:
         limits:
           memory: "2000Mi"
@@ -333,7 +333,7 @@ jobs.each do |job|
   end
 
   puts "There are #{number_ffmpeg_pods} running right now..."
-  if number_ffmpeg_pods.to_i < 2
+  if number_ffmpeg_pods.to_i < 4
 
     puts "Ooh yeah - I'm starting #{job["uid"]}!"
     begin_job(job["uid"])
