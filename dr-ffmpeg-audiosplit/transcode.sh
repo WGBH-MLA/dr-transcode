@@ -1,5 +1,6 @@
-function output_file_exists {
-  aws --endpoint-url 'http://s3-bos.wgbh.org' s3api head-object --bucket $DRTRANSCODE_OUTPUT_BUCKET --key $destination_output_key &> /dev/null
+function done_file_exists {
+  donefilename="dr-transcode-successes/success-${DRTRANSCODE_UID}.txt"
+  aws --endpoint-url 'http://s3-bos.wgbh.org' s3api head-object --bucket $DRTRANSCODE_OUTPUT_BUCKET --key $donefilename &> /dev/null
 }
 
 function error_file_exists {
