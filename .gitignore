@@ -6,3 +6,9 @@ pip_input.mkv
 pip_input.mp4
 missing-*
 *.txt
+
+
+# temp
+dr-controller/Gemfile
+dr-controller/spec-cron-queue.rb
+dr-controller/fixtures
