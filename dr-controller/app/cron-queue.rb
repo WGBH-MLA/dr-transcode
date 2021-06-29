@@ -177,7 +177,7 @@ spec:
         secretName: obstoresecrets
   containers:
     - name: dr-ffmpeg
-      image: mla-dockerhub.wgbh.org/dr-ffmpeg:151
+      image: mla-dockerhub.wgbh.org/dr-ffmpeg:152
       resources:
         limits:
           memory: "2000Mi"
@@ -233,7 +233,7 @@ spec:
         secretName: obstoresecrets
   containers:
     - name: dr-ffmpeg
-      image: mla-dockerhub.wgbh.org/dr-ffmpeg-audiosplit:151
+      image: mla-dockerhub.wgbh.org/dr-ffmpeg-audiosplit:152
       resources:
         limits:
           memory: "2000Mi"
