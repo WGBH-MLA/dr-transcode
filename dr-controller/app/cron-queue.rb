@@ -35,7 +35,7 @@ def receive_sqs_messages(queue_url)
   return msgs["Messages"]
 end
 
-def process_sqs_messages(msgs)
+def process_sqs_messages(queue_url, msgs)
 
   puts "got SQS messages #{msgs}"
   if msgs && msgs[0]
@@ -398,7 +398,7 @@ queue_url = File.read('/root/queueurl/DRTRANSCODE_QUEUE_URL')
 
 # either get the jobtype from the message here, or default it to CreateProxy if this is an auto bucket notification
 msgs = receive_sqs_messages( queue_url ).map {|m| job_info_from_sqs_message(m) }.compact
-process_sqs_messages(msgs)
+process_sqs_messages(queue_url, msgs)
 
 # actually start jobs that we successfully initted above - limit 48 so we dont ask 'how many pods' a thousand times every cycle, but have enough of a buffer to get 4 new pods for any issues talking to kube
 jobs = @client.query("SELECT * FROM jobs WHERE status=#{JobStatus::Received} LIMIT 48")
