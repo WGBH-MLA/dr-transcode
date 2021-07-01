@@ -48,12 +48,19 @@ def process_sqs_messages(queue_url, msgs)
 
       # make sure there is not already a matching, unfailed job of this jobtype
       if validate_for_init(input_bucketname, input_filepath, job_type)
+        # if the input key already exists as a nonfailed job, DONT create a new JOB
+
         puts "Here we go initting job"
         uid = init_job(input_bucketname, input_filepath, job_type)
 
         if validate_for_jobstart(uid, job_type, input_bucketname, input_filepath)
+          
           # input file does exist!
+          # output file does NOT exist
+
           puts "Succeeded validation for job #{uid} key #{input_filepath} in bucket #{input_bucketname} with job_type #{job_type} - job will begin shortly."
+        else
+          puts ""
         end
 
       else
@@ -70,6 +77,14 @@ end
 
 def handle_starting_jobs(jobs)
   jobs.each do |job|
+
+    output_filepath = get_output_key(job["input_bucketname"], job["input_filepath"])
+    if check_file_exists("streaming-proxies", output_filepath)
+      set_job_status(job["uid"], JobStatus::Failed, "Didnt start job because! the out file #{output_filepath} in bucket streaming-proxies was already generated..!")
+  
+      # to save time, make sure that this output file doesnt alreayd exist, and skip+fail this job if it does
+      next
+    end
 
     # this works, but sometimes gets 'TLS handshake error', yielding '0 pods running'
     # number_ffmpeg_pods = `kubectl --kubeconfig=/mnt/kubectl-secret --namespace=dr-transcode get pods | grep '^dr-ffmpeg' | wc -l`
@@ -177,7 +192,7 @@ spec:
         secretName: obstoresecrets
   containers:
     - name: dr-ffmpeg
-      image: mla-dockerhub.wgbh.org/dr-ffmpeg:153
+      image: mla-dockerhub.wgbh.org/dr-ffmpeg:154
       resources:
         limits:
           memory: "2000Mi"
@@ -233,7 +248,7 @@ spec:
         secretName: obstoresecrets
   containers:
     - name: dr-ffmpeg
-      image: mla-dockerhub.wgbh.org/dr-ffmpeg-audiosplit:153
+      image: mla-dockerhub.wgbh.org/dr-ffmpeg-audiosplit:154
       resources:
         limits:
           memory: "2000Mi"
@@ -338,6 +353,13 @@ def validate_for_jobstart(uid, job_type, input_bucketname,  input_filepath)
   # check that input file exists
   unless check_file_exists(input_bucketname, input_filepath)
     set_job_status(uid, JobStatus::Failed, "Input file #{input_filepath} in bucket #{input_bucketname} was not found on Object Store...")
+    return false
+  end
+
+  # check that output file do not exists
+  output_filepath = get_output_key(input_bucketname, input_filepath)
+  if check_file_exists("streaming-proxies", output_filepath)
+    set_job_status(uid, JobStatus::Failed, "Output file #{output_filepath} in bucket streaming-proxies was already generated..!")
     return false
   end
 
