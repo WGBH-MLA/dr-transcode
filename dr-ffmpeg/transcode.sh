@@ -8,7 +8,9 @@ function error_file_exists {
 }
 
 # download input file
-cd /root
+workspace_folder=/workspace/"$DRTRANSCODE_UID"
+mkdir -p $workspace_folder
+cd $workspace_folder
 
 # exit
 [ -z "$DRTRANSCODE_OUTPUT_BUCKET" ] && [ -z "$DRTRANSCODE_INPUT_BUCKET" ] && [ -z "$DRTRANSCODE_INPUT_KEY" ] && echo "Missing DRTRANSCODE env variables, bye bye!" && exit 1
@@ -23,9 +25,9 @@ filename=$(basename -- "$DRTRANSCODE_INPUT_KEY")
 # chop that ext off baby
 filename_no_ext=$(echo "$filename" | cut -f 1 -d '.' )
 
-local_input_filepath=/root/"$filename"
+local_input_filepath="$workspace_folder"/"$filename"
 mp4filename="$filename_no_ext".mp4
-local_output_filepath=/root/"$mp4filename"
+local_output_filepath=$workspace_folder/"$mp4filename"
 
 keypath=$(dirname "$DRTRANSCODE_INPUT_KEY")
 # s3:streaming-proxies//< folder named after input bucket name>/<full input key path from input bucket>/< input filename but with mp4 extension >
@@ -128,3 +130,10 @@ aws --endpoint-url 'http://s3-bos.wgbh.org' s3api put-object --bucket $DRTRANSCO
 
 # add public acl to de file
 aws --endpoint-url 'http://s3-bos.wgbh.org' s3api put-object-acl --bucket $DRTRANSCODE_OUTPUT_BUCKET --key $destination_output_key --acl public-read
+
+
+# clean up
+rm -rf /workspace/"$DRTRANSCODE_UID"
+
+# bye!
+

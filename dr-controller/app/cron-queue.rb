@@ -192,7 +192,7 @@ spec:
         secretName: obstoresecrets
   containers:
     - name: dr-ffmpeg
-      image: mla-dockerhub.wgbh.org/dr-ffmpeg:154
+      image: mla-dockerhub.wgbh.org/dr-ffmpeg:155
       resources:
         limits:
           memory: "2000Mi"
@@ -201,6 +201,8 @@ spec:
       - mountPath: /root/.aws
         name: obstoresecrets
         readOnly: true
+      - mountPath: /workspace
+        name: dr-transcode-workspace
       env:
       - name: DRTRANSCODE_UID
         value: #{uid}
@@ -248,7 +250,7 @@ spec:
         secretName: obstoresecrets
   containers:
     - name: dr-ffmpeg
-      image: mla-dockerhub.wgbh.org/dr-ffmpeg-audiosplit:154
+      image: mla-dockerhub.wgbh.org/dr-ffmpeg-audiosplit:155
       resources:
         limits:
           memory: "2000Mi"
@@ -257,6 +259,8 @@ spec:
       - mountPath: /root/.aws
         name: obstoresecrets
         readOnly: true
+      - mountPath: /workspace
+        name: dr-transcode-workspace        
       env:
       - name: DRTRANSCODE_UID
         value: #{uid}

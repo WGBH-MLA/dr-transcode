@@ -9,7 +9,10 @@ function error_file_exists {
 }
 
 # download input file
-cd /root
+workspace_folder=/workspace/"$DRTRANSCODE_UID"
+mkdir -p $workspace_folder
+cd $workspace_folder
+
 
 # exit
 [ -z "$DRTRANSCODE_OUTPUT_BUCKET" ] && [ -z "$DRTRANSCODE_INPUT_BUCKET" ] && [ -z "$DRTRANSCODE_INPUT_KEY" ] && [ -z "$DRTRANSCODE_PRESERVE_AUDIO_CHANNEL"] && echo "Missing DRTRANSCODE env variables, bye bye!" && exit 1
@@ -17,9 +20,9 @@ cd /root
 echo "Building expected output filename..."
 filename=$(basename -- "$DRTRANSCODE_INPUT_KEY")
 filename_no_ext=$(basename -- "$DRTRANSCODE_INPUT_KEY" .dv .mkv .mov .wav)
-local_input_filepath=/root/"$filename"
-mp4filename="$filename_no_ext".mp4
-local_output_filepath=/root/"split-$mp4filename"
+local_input_filepath="$workspace_folder"/"$filename"
+mp4filename=split-"$filename_no_ext".mp4
+local_output_filepath=$workspace_folder/"$mp4filename"
 
 keypath=$(dirname "$DRTRANSCODE_INPUT_KEY")
 # s3:streaming-proxies//< folder named after input bucket name>/<full input key path from input bucket>/< input filename but with mp4 extension >
