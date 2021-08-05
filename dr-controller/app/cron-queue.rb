@@ -190,9 +190,10 @@ spec:
         defaultMode: 256
         optional: false
         secretName: obstoresecrets
+    - name: dr-transcode-workspace
   containers:
     - name: dr-ffmpeg
-      image: mla-dockerhub.wgbh.org/dr-ffmpeg:156
+      image: mla-dockerhub.wgbh.org/dr-ffmpeg:157
       resources:
         limits:
           memory: "2000Mi"
@@ -248,9 +249,10 @@ spec:
         defaultMode: 256
         optional: false
         secretName: obstoresecrets
+    - name: dr-transcode-workspace        
   containers:
     - name: dr-ffmpeg
-      image: mla-dockerhub.wgbh.org/dr-ffmpeg-audiosplit:156
+      image: mla-dockerhub.wgbh.org/dr-ffmpeg-audiosplit:157
       resources:
         limits:
           memory: "2000Mi"
