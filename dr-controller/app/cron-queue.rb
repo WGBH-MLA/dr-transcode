@@ -79,7 +79,7 @@ def handle_starting_jobs(jobs)
   jobs.each do |job|
 
     output_filepath = get_output_key(job["input_bucketname"], job["input_filepath"])
-    if job_type == JobType::CreateProxy && check_file_exists("streaming-proxies", output_filepath)
+    if job["job_type"] == JobType::CreateProxy && check_file_exists("streaming-proxies", output_filepath)
       set_job_status(job["uid"], JobStatus::Failed, "Didnt start job because! the out file #{output_filepath} in bucket streaming-proxies was already generated..!")
   
       # to save time, make sure that this output file doesnt alreayd exist, and skip+fail this job if it does
@@ -193,7 +193,7 @@ spec:
     - name: dr-transcode-workspace
   containers:
     - name: dr-ffmpeg
-      image: mla-dockerhub.wgbh.org/dr-ffmpeg:158
+      image: mla-dockerhub.wgbh.org/dr-ffmpeg:159
       resources:
         limits:
           memory: "2000Mi"
@@ -252,7 +252,7 @@ spec:
     - name: dr-transcode-workspace        
   containers:
     - name: dr-ffmpeg
-      image: mla-dockerhub.wgbh.org/dr-ffmpeg-audiosplit:158
+      image: mla-dockerhub.wgbh.org/dr-ffmpeg-audiosplit:159
       resources:
         limits:
           memory: "2000Mi"
