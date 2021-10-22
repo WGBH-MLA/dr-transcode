@@ -16,16 +16,11 @@ puts "Woo-hoo!"
 keys = [
   # replicate the s3 notification msg format
   # %('{ "Records": [ { "s3": { "bucket": { "name": "nehdigitization" }, "object": { "key": "24534/barcode63023/PreservationMaster/barcode63023.mkv" } } } ] }'),
-  %('{ "Records": [ { "s3": { "bucket": { "name": "asiacollection" }, "object": { "key": "asiacol/barcode106039/PreservationMaster/barcode106039_1.mkv" } } } ] }'),
-  %('{ "Records": [ { "s3": { "bucket": { "name": "asiacollection" }, "object": { "key": "asiacol/barcode106039/PreservationMaster/barcode106039_2.mkv" } } } ] }'),
-  %('{ "Records": [ { "s3": { "bucket": { "name": "asiacollection" }, "object": { "key": "asiacol/barcode106039/PreservationMaster/barcode106039_3.mkv" } } } ] }'),
-  %('{ "Records": [ { "s3": { "bucket": { "name": "asiacollection" }, "object": { "key": "asiacol/barcode167514/PreservationMaster/barcode167514.mkv" } } } ] }'),
-  %('{ "Records": [ { "s3": { "bucket": { "name": "asiacollection" }, "object": { "key": "asiacol/barcode279613/PreservationMaster/barcode279613.mkv" } } } ] }'),
-  %('{ "Records": [ { "s3": { "bucket": { "name": "asiacollection" }, "object": { "key": "asiacol/barcode343792/PreservationMaster/barcode343792.dv" } } } ] }'),
-  %('{ "Records": [ { "s3": { "bucket": { "name": "asiacollection" }, "object": { "key": "asiacol/barcode384458/PreservationMaster/barcode384458_01.wav" } } } ] }'),
-  %('{ "Records": [ { "s3": { "bucket": { "name": "nehdigitization" }, "object": { "key": "24153/barcode258425/PreservationMaster/barcode258425.mkv" } } } ] }'),
+  # %('{ "Records": [ { "s3": { "bucket": { "name": "asiacollection" }, "object": { "key": "asiacol/barcode104521/PreservationMaster/barcode104521.mkv" } } } ] }'),
+  # %('{ "Records": [ { "s3": { "bucket": { "name": "nehdigitization" }, "object": { "key": "23406/barcode163691/PreservationMaster/barcode163691.mkv" } } } ] }'),
 
-  
+  %('{ "jobType": 1, "Records": [ { "s3": { "bucket": { "name": "streaming-proxies" }, "object": { "key": "nehdigitization/23406/barcode163691/PreservationMaster/barcode163691.mp4" } } } ] }'),
+
 
 ]
 

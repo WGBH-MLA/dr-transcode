@@ -56,7 +56,7 @@ def process_sqs_messages(queue_url, msgs)
         if validate_for_jobstart(uid, job_type, input_bucketname, input_filepath)
           
           # input file does exist!
-          # output file does NOT exist
+          # output file does NOT exist, unless audiosplit job
 
           puts "Succeeded validation for job #{uid} key #{input_filepath} in bucket #{input_bucketname} with job_type #{job_type} - job will begin shortly."
         else
@@ -79,7 +79,7 @@ def handle_starting_jobs(jobs)
   jobs.each do |job|
 
     output_filepath = get_output_key(job["input_bucketname"], job["input_filepath"])
-    if check_file_exists("streaming-proxies", output_filepath)
+    if job_type == JobType::CreateProxy && check_file_exists("streaming-proxies", output_filepath)
       set_job_status(job["uid"], JobStatus::Failed, "Didnt start job because! the out file #{output_filepath} in bucket streaming-proxies was already generated..!")
   
       # to save time, make sure that this output file doesnt alreayd exist, and skip+fail this job if it does
@@ -347,10 +347,10 @@ end
 
 def validate_for_init(input_bucketname, input_filepath, job_type)
   # check for jobs with SAME input key that DID NOT fail
-  results = @client.query(%(SELECT * FROM jobs WHERE input_bucketname="#{input_bucketname}" AND input_filepath="#{input_filepath} AND job_type=#{job_type} AND status!=3"))
+  results = @client.query(%(SELECT * FROM jobs WHERE input_bucketname="#{input_bucketname}" AND input_filepath="#{input_filepath} AND job_type=#{job_type} AND status<3"))
   puts results.inspect
 
-  # if theres no redundant job for this key, we're good to init the job
+  # if theres no redundant/nonshelved job for this key, we're good to init the job
   results.count == 0
 end
 
@@ -363,10 +363,14 @@ def validate_for_jobstart(uid, job_type, input_bucketname,  input_filepath)
   end
 
   # check that output file do not exists
-  output_filepath = get_output_key(input_bucketname, input_filepath)
-  if check_file_exists("streaming-proxies", output_filepath)
-    set_job_status(uid, JobStatus::Failed, "Output file #{output_filepath} in bucket streaming-proxies was already generated..!")
-    return false
+  if job_type == JobType::CreateProxy
+    # for audiosplit jobs, output file and input file are the same, so ignore this
+
+    output_filepath = get_output_key(input_bucketname, input_filepath)
+    if check_file_exists("streaming-proxies", output_filepath)
+      set_job_status(uid, JobStatus::Failed, "Output file #{output_filepath} in bucket streaming-proxies was already generated..!")
+      return false
+    end
   end
 
   if (job_type == JobType::PreserveLeftAudio || job_type == JobType::PreserveRightAudio) && !input_filepath.end_with?(".mp4")
