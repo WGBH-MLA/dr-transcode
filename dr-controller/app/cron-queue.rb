@@ -91,7 +91,7 @@ def handle_starting_jobs(jobs)
     # this badboy protects against that
     number_ffmpeg_pods = `/root/app/check_number_pods.sh`
 
-    if number_ffmpeg_pods.to_i == -1
+    if number_ffmpeg_pods.to_i == -1  
       puts "Failed to grab number of pods due to TLS error... skipping starting job on #{job["uid"]} this time around"
       next
     end
@@ -193,7 +193,7 @@ spec:
     - name: dr-transcode-workspace
   containers:
     - name: dr-ffmpeg
-      image: mla-dockerhub.wgbh.org/dr-ffmpeg:157
+      image: mla-dockerhub.wgbh.org/dr-ffmpeg:158
       resources:
         limits:
           memory: "2000Mi"
@@ -252,7 +252,7 @@ spec:
     - name: dr-transcode-workspace        
   containers:
     - name: dr-ffmpeg
-      image: mla-dockerhub.wgbh.org/dr-ffmpeg-audiosplit:157
+      image: mla-dockerhub.wgbh.org/dr-ffmpeg-audiosplit:158
       resources:
         limits:
           memory: "2000Mi"
