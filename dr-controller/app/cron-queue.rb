@@ -28,7 +28,7 @@ def receive_sqs_messages(queue_url)
 
   begin
     msgs = JSON.parse(msgjson)
-  rescue JSON::ParseError
+  rescue JSON::ParserError
     return []
   end
 
@@ -193,7 +193,7 @@ spec:
     - name: dr-transcode-workspace
   containers:
     - name: dr-ffmpeg
-      image: mla-dockerhub.wgbh.org/dr-ffmpeg:159
+      image: mla-dockerhub.wgbh.org/dr-ffmpeg:160
       resources:
         limits:
           memory: "2000Mi"
@@ -252,7 +252,7 @@ spec:
     - name: dr-transcode-workspace        
   containers:
     - name: dr-ffmpeg
-      image: mla-dockerhub.wgbh.org/dr-ffmpeg-audiosplit:159
+      image: mla-dockerhub.wgbh.org/dr-ffmpeg-audiosplit:160
       resources:
         limits:
           memory: "2000Mi"
