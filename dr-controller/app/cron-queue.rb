@@ -97,7 +97,7 @@ def handle_starting_jobs(jobs)
     end
 
     puts "There are #{number_ffmpeg_pods} running right now..."
-    if number_ffmpeg_pods.to_i < 4
+    if number_ffmpeg_pods.to_i < 3
 
       puts "Ooh yeah - I'm starting #{job["uid"]}!"
       begin_job(job["uid"])
@@ -432,8 +432,8 @@ queue_url = File.read('/root/queueurl/DRTRANSCODE_QUEUE_URL')
 msgs = receive_sqs_messages( queue_url ).map {|m| job_info_from_sqs_message(m) }.compact
 process_sqs_messages(queue_url, msgs)
 
-# actually start jobs that we successfully initted above - limit 48 so we dont ask 'how many pods' a thousand times every cycle, but have enough of a buffer to get 4 new pods for any issues talking to kube
-jobs = @client.query("SELECT * FROM jobs WHERE status=#{JobStatus::Received} LIMIT 48")
+# actually start jobs that we successfully initted above - limit 8 so we dont ask 'how many pods' a thousand times every cycle, but have enough of a buffer to get 4 new pods for any issues talking to kube
+jobs = @client.query("SELECT * FROM jobs WHERE status=#{JobStatus::Received} LIMIT 8")
 puts "Found #{jobs.count} jobs with JS::Received"
 handle_starting_jobs(jobs)
 
