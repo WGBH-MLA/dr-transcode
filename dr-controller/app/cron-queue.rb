@@ -193,7 +193,7 @@ spec:
     - name: dr-transcode-workspace
   containers:
     - name: dr-ffmpeg
-      image: mla-dockerhub.wgbh.org/dr-ffmpeg:160
+      image: mla-dockerhub.wgbh.org/dr-ffmpeg:161
       resources:
         limits:
           memory: "2000Mi"
@@ -252,7 +252,7 @@ spec:
     - name: dr-transcode-workspace        
   containers:
     - name: dr-ffmpeg
-      image: mla-dockerhub.wgbh.org/dr-ffmpeg-audiosplit:160
+      image: mla-dockerhub.wgbh.org/dr-ffmpeg-audiosplit:161
       resources:
         limits:
           memory: "2000Mi"
