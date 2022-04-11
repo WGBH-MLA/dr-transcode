@@ -11,7 +11,7 @@ query = ARGV[0]
 jobs = @client.query("SELECT * FROM jobs")
 CSV.open("alljobs-#{ Time.now.strftime("%m-%e-%y-%H:%M") }.csv", "wb") do |csv|
   csv << ['UID', "JobStatus", "Job Type", "Input Filepath", "Input Bucket", "Created At", "Fail Reason"]
-    
+
   uniquejobs = jobs.uniq {|job| job["input_filepath"]+job["input_bucketname"] }
   uniquejobs.each do |job|
     csv << [ job["uid"], job["status"], job["job_type"], job["input_filepath"], job["input_bucketname"], job["created_at"], job["fail_reason"] ]

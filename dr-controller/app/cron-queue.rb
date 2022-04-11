@@ -433,16 +433,19 @@ msgs = receive_sqs_messages( queue_url ).map {|m| job_info_from_sqs_message(m) }
 process_sqs_messages(queue_url, msgs)
 
 # actually start jobs that we successfully initted above - limit 8 so we dont ask 'how many pods' a thousand times every cycle, but have enough of a buffer to get 4 new pods for any issues talking to kube
-jobs = @client.query("SELECT * FROM jobs WHERE status=#{JobStatus::Received} LIMIT 8")
-puts "Found #{jobs.count} jobs with JS::Received"
-handle_starting_jobs(jobs)
 
-# check if file Status::WORKING exists on objectstore, mark as completedWork if done...
-# job.each...
-jobs = @client.query("SELECT * FROM jobs WHERE status=#{JobStatus::Working}")
-puts "Found #{jobs.count} jobs with JS::Working"
-handle_stopping_jobs(jobs)
+if false
+  # disable for now
+  jobs = @client.query("SELECT * FROM jobs WHERE status=#{JobStatus::Received} LIMIT 8")
+  puts "Found #{jobs.count} jobs with JS::Received"
+  handle_starting_jobs(jobs)
 
+  # check if file Status::WORKING exists on objectstore, mark as completedWork if done...
+  # job.each...
+  jobs = @client.query("SELECT * FROM jobs WHERE status=#{JobStatus::Working}")
+  puts "Found #{jobs.count} jobs with JS::Working"
+  handle_stopping_jobs(jobs)
+end
 
 # CREATE TABLE jobs (uid varchar(255), status int, input_filepath varchar(1024), fail_reason varchar(1024), created_at datetime DEFAULT CURRENT_TIMESTAMP), job_type int DEFAULT 0, input_bucketname varchar(1024));
 
