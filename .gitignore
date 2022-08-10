@@ -6,7 +6,8 @@ pip_input.mkv
 pip_input.mp4
 missing-*
 *.txt
-
+*.csv
+*.sql
 
 # temp
 dr-controller/Gemfile

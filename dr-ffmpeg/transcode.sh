@@ -46,7 +46,8 @@ if error_file_exists;
     exit 0
 fi
 
-echo "Downloading input file..."
+echo "LISTEN"
+echo "Downloading input file to $local_input_filepath..."
 aws --endpoint-url 'http://s3-bos.wgbh.org' s3api get-object --bucket $DRTRANSCODE_INPUT_BUCKET --key $DRTRANSCODE_INPUT_KEY $local_input_filepath
 
 echo "Running ffprobe..."
@@ -133,7 +134,8 @@ aws --endpoint-url 'http://s3-bos.wgbh.org' s3api put-object-acl --bucket $DRTRA
 
 
 # clean up
-rm -rf /workspace/"$DRTRANSCODE_UID"
+echo "Deleting finished files at /workspace/"$DRTRANSCODE_UID"/*"
+rm /workspace/"$DRTRANSCODE_UID"/*
 
 # bye!
 

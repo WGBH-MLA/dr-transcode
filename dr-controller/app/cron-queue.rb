@@ -34,7 +34,7 @@ def receive_sqs_messages(queue_url)
 
   return msgs["Messages"]
 end
-
+  
 def process_sqs_messages(queue_url, msgs)
 
   puts "got SQS messages #{msgs}"
@@ -97,7 +97,7 @@ def handle_starting_jobs(jobs)
     end
 
     puts "There are #{number_ffmpeg_pods} running right now..."
-    if number_ffmpeg_pods.to_i < 3
+    if number_ffmpeg_pods.to_i < 4
 
       puts "Ooh yeah - I'm starting #{job["uid"]}!"
       begin_job(job["uid"])
@@ -137,7 +137,7 @@ def handle_stopping_jobs(jobs)
     if job_finished
       # head-object returns "" in this context when 404, otherwise gives a zesty pan-fried json message as a String
       puts "Job Succeeded - Attempting to delete pod #{pod_name}"
-      puts `kubectl --kubeconfig=/mnt/kubectl-secret --namespace=dr-transcode delete pod #{pod_name}`  
+      puts `kubectl --kubeconfig=/mnt/kubectl-secret --namespace=dr-transcode delete pod #{pod_name}`
       set_job_status(job["uid"], JobStatus::CompletedWork)
     else
 
@@ -173,27 +173,18 @@ metadata:
   labels:
     app: dr-ffmpeg
 spec:
-  affinity:
-    podAntiAffinity:
-      requiredDuringSchedulingIgnoredDuringExecution:
-      - labelSelector:
-          matchExpressions:
-          - key: app
-            operator: In
-            values:
-            - dr-ffmpeg
-        topologyKey: kubernetes.io/hostname
-        
   volumes:
     - name: obstoresecrets
       secret:
         defaultMode: 256
         optional: false
         secretName: obstoresecrets
-    - name: dr-transcode-workspace
+    - name: dr-transcode-workarea
+      persistentVolumeClaim:
+        claimName: dr-transcode-workarea
   containers:
     - name: dr-ffmpeg
-      image: mla-dockerhub.wgbh.org/dr-ffmpeg:162
+      image: foggbh/dr-ffmpeg:latest
       resources:
         limits:
           memory: "2000Mi"
@@ -203,7 +194,7 @@ spec:
         name: obstoresecrets
         readOnly: true
       - mountPath: /workspace
-        name: dr-transcode-workspace
+        name: dr-transcode-workarea
       env:
       - name: DRTRANSCODE_UID
         value: #{uid}
@@ -213,8 +204,6 @@ spec:
         value: #{ input_filepath }
       - name: DRTRANSCODE_OUTPUT_BUCKET
         value: streaming-proxies
-  imagePullSecrets:
-      - name: mla-dockerhub
   }
   elsif job_type == JobType::PreserveLeftAudio  || job_type == JobType::PreserveRightAudio
 
@@ -232,27 +221,18 @@ metadata:
   labels:
     app: dr-ffmpeg
 spec:
-  affinity:
-    podAntiAffinity:
-      requiredDuringSchedulingIgnoredDuringExecution:
-      - labelSelector:
-          matchExpressions:
-          - key: app
-            operator: In
-            values:
-            - dr-ffmpeg
-        topologyKey: kubernetes.io/hostname
-        
   volumes:
     - name: obstoresecrets
       secret:
         defaultMode: 256
         optional: false
         secretName: obstoresecrets
-    - name: dr-transcode-workspace        
+    - name: dr-transcode-workarea
+      persistentVolumeClaim:
+        claimName: dr-transcode-workarea 
   containers:
     - name: dr-ffmpeg
-      image: mla-dockerhub.wgbh.org/dr-ffmpeg-audiosplit:162
+      image: foggbh/dr-ffmpeg-audiosplit:latest
       resources:
         limits:
           memory: "2000Mi"
@@ -262,7 +242,7 @@ spec:
         name: obstoresecrets
         readOnly: true
       - mountPath: /workspace
-        name: dr-transcode-workspace        
+        name: dr-transcode-workarea
       env:
       - name: DRTRANSCODE_UID
         value: #{uid}
@@ -274,8 +254,6 @@ spec:
         value: streaming-proxies
       - name: DRTRANSCODE_PRESERVE_AUDIO_CHANNEL
         value: #{ channel }
-  imagePullSecrets:
-      - name: mla-dockerhub
   }
 
   end
@@ -429,23 +407,23 @@ end
 queue_url = File.read('/root/queueurl/DRTRANSCODE_QUEUE_URL')
 
 # either get the jobtype from the message here, or default it to CreateProxy if this is an auto bucket notification
-msgs = receive_sqs_messages( queue_url ).map {|m| job_info_from_sqs_message(m) }.compact
+
+# disable for now
+#msgs = receive_sqs_messages( queue_url ).map {|m| job_info_from_sqs_message(m) }.compact
+msgs = []
 process_sqs_messages(queue_url, msgs)
 
 # actually start jobs that we successfully initted above - limit 8 so we dont ask 'how many pods' a thousand times every cycle, but have enough of a buffer to get 4 new pods for any issues talking to kube
 
-if false
-  # disable for now
-  jobs = @client.query("SELECT * FROM jobs WHERE status=#{JobStatus::Received} LIMIT 8")
-  puts "Found #{jobs.count} jobs with JS::Received"
-  handle_starting_jobs(jobs)
+jobs = @client.query("SELECT * FROM jobs WHERE status=#{JobStatus::Received} LIMIT 8")
+puts "Found #{jobs.count} jobs with JS::Received"
+handle_starting_jobs(jobs)
 
-  # check if file Status::WORKING exists on objectstore, mark as completedWork if done...
-  # job.each...
-  jobs = @client.query("SELECT * FROM jobs WHERE status=#{JobStatus::Working}")
-  puts "Found #{jobs.count} jobs with JS::Working"
-  handle_stopping_jobs(jobs)
-end
+# check if file Status::WORKING exists on objectstore, mark as completedWork if done...
+# job.each...
+jobs = @client.query("SELECT * FROM jobs WHERE status=#{JobStatus::Working}")
+puts "Found #{jobs.count} jobs with JS::Working"
+handle_stopping_jobs(jobs)
 
 # CREATE TABLE jobs (uid varchar(255), status int, input_filepath varchar(1024), fail_reason varchar(1024), created_at datetime DEFAULT CURRENT_TIMESTAMP), job_type int DEFAULT 0, input_bucketname varchar(1024));
 
