@@ -18,6 +18,12 @@ module JobType
   PreserveRightAudio = 2
 end
 
+num_running = `ps aux| grep "cron-queue.rb >> /var/log/queue-cron.log 2>&1" | grep -v "/bin/sh" | grep -v grep | grep -v $$ | wc -l`
+unless num_running.to_i == 1
+  puts "Exiting, previous cron run still in progress... #{num_running}\n\n"
+  return
+end
+
 # load db..
 @client = Mysql2::Client.new(host: "mysql", username: "root", database: "drtranscode", password: "", port: 3306)
 
@@ -415,7 +421,7 @@ process_sqs_messages(queue_url, msgs)
 
 # actually start jobs that we successfully initted above - limit 8 so we dont ask 'how many pods' a thousand times every cycle, but have enough of a buffer to get 4 new pods for any issues talking to kube
 
-jobs = @client.query("SELECT * FROM jobs WHERE status=#{JobStatus::Received} LIMIT 8")
+jobs = @client.query("SELECT * FROM jobs WHERE status=#{JobStatus::Received} LIMIT 10000")
 puts "Found #{jobs.count} jobs with JS::Received"
 handle_starting_jobs(jobs)
 

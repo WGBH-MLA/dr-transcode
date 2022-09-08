@@ -11,6 +11,7 @@ WORKDIR /root
 # RUN crontab /root/queue-cron
 
 COPY queue-cron /var/spool/cron/crontabs/root
+RUN crontab /var/spool/cron/crontabs/root
 RUN touch /var/log/queue-cron.log
 
 ADD app/ app/
