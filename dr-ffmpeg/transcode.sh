@@ -134,8 +134,9 @@ aws --endpoint-url 'http://s3-bos.wgbh.org' s3api put-object-acl --bucket $DRTRA
 
 
 # clean up
-echo "Deleting finished files at /workspace/"$DRTRANSCODE_UID"/*"
+echo "Deleting finished files at /workspace/"$DRTRANSCODE_UID"/"
 rm /workspace/"$DRTRANSCODE_UID"/*
+rmdir /workspace/"$DRTRANSCODE_UID"
 
 # bye!
 

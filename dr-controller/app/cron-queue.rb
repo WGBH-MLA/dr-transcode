@@ -74,8 +74,6 @@ def process_sqs_messages(queue_url, msgs)
       end
     
       puts "Deleting processed SQS message #{message[:receipt_handle]}"
-      # puts "Deleting processed SQS message #{message.receipt_handle}"
-      # @sqs.delete_message({queue_url: ENV["DRTRANSCODE_QUEUE_URL"], receipt_handle: message.receipt_handle})
       delete_sqs_message(queue_url, message[:receipt_handle])
     end
   end
@@ -84,11 +82,8 @@ end
 def handle_starting_jobs(jobs)
   jobs.each do |job|
 
-    output_filepath = get_output_key(job["input_bucketname"], job["input_filepath"])
-    if job["job_type"] == JobType::CreateProxy && check_file_exists("streaming-proxies", output_filepath)
-      set_job_status(job["uid"], JobStatus::Failed, "Didnt start job because! the out file #{output_filepath} in bucket streaming-proxies was already generated..!")
-  
-      # to save time, make sure that this output file doesnt alreayd exist, and skip+fail this job if it does
+    unless validate_for_jobstart(job["uid"], job["job_type"], job["input_bucketname"], job["input_filepath"])
+      # job will be failed in the validate method, so just skip it here
       next
     end
 
@@ -97,13 +92,13 @@ def handle_starting_jobs(jobs)
     # this badboy protects against that
     number_ffmpeg_pods = `/root/app/check_number_pods.sh`
 
-    if number_ffmpeg_pods.to_i == -1  
+    if number_ffmpeg_pods.to_i == -1
       puts "Failed to grab number of pods due to TLS error... skipping starting job on #{job["uid"]} this time around"
       next
     end
 
     puts "There are #{number_ffmpeg_pods} running right now..."
-    if number_ffmpeg_pods.to_i < 2
+    if number_ffmpeg_pods.to_i < 4
 
       puts "Ooh yeah - I'm starting #{job["uid"]}!"
       begin_job(job["uid"])
@@ -145,6 +140,7 @@ def handle_stopping_jobs(jobs)
       puts "Job Succeeded - Attempting to delete pod #{pod_name}"
       puts `kubectl --kubeconfig=/mnt/kubectl-secret --namespace=dr-transcode delete pod #{pod_name}`
       set_job_status(job["uid"], JobStatus::CompletedWork)
+      set_job_end_time(job["uid"])
     else
 
       # check for error file...
@@ -157,6 +153,7 @@ def handle_stopping_jobs(jobs)
         puts "Error detected on #{job["uid"]}, Going to kill container :("
         puts `kubectl --kubeconfig=/mnt/kubectl-secret --namespace=dr-transcode delete pod #{pod_name}`  
         set_job_status(job["uid"], JobStatus::Failed, "Error file was found, failing")
+        set_job_end_time(job["uid"])
       else 
         puts "Job #{job["uid"]} isnt done, keeeeeeeep going!"
       end
@@ -374,6 +371,7 @@ def get_file_info(bucket, key)
 end
 
 def check_file_exists(bucket, file)
+  puts "Now checking for key #{file} in bucket #{bucket}"
   s3_output = get_file_info(bucket, file)
   # ruby return value is "" for an s3 404
   s3_output && s3_output != ""
@@ -406,6 +404,15 @@ def begin_job(uid)
   puts "I sure would like to start #{uid} for #{input_filepath}!"
   puts `kubectl --kubeconfig /mnt/kubectl-secret --namespace=dr-transcode apply -f /root/pod.yml`
   set_job_status(uid, JobStatus::Working)
+  set_job_start_time(uid)
+end
+
+def set_job_start_time(uid)
+  @client.query(%(UPDATE jobs SET job_start_time="#{Time.now.strftime('%Y-%m-%d %H:%M:%S')}" WHERE uid="#{uid}"))
+end
+
+def set_job_end_time(uid)
+  @client.query(%(UPDATE jobs SET job_end_time="#{Time.now.strftime('%Y-%m-%d %H:%M:%S')}" WHERE uid="#{uid}"))
 end
 
 # check if its time to LIVE
@@ -416,12 +423,10 @@ queue_url = File.read('/root/queueurl/DRTRANSCODE_QUEUE_URL')
 
 # disable for now
 #msgs = receive_sqs_messages( queue_url ).map {|m| job_info_from_sqs_message(m) }.compact
-msgs = []
-process_sqs_messages(queue_url, msgs)
+# process_sqs_messages(queue_url, msgs)
 
 # actually start jobs that we successfully initted above - limit 8 so we dont ask 'how many pods' a thousand times every cycle, but have enough of a buffer to get 4 new pods for any issues talking to kube
-
-jobs = @client.query("SELECT * FROM jobs WHERE status=#{JobStatus::Received} LIMIT 10000")
+jobs = @client.query("SELECT * FROM jobs WHERE status=#{JobStatus::Received} LIMIT 8")
 puts "Found #{jobs.count} jobs with JS::Received"
 handle_starting_jobs(jobs)
 
@@ -431,11 +436,16 @@ jobs = @client.query("SELECT * FROM jobs WHERE status=#{JobStatus::Working}")
 puts "Found #{jobs.count} jobs with JS::Working"
 handle_stopping_jobs(jobs)
 
+# if NEED EMPTY MSG
+    
+# end
+
 # CREATE TABLE jobs (uid varchar(255), status int, input_filepath varchar(1024), fail_reason varchar(1024), created_at datetime DEFAULT CURRENT_TIMESTAMP), job_type int DEFAULT 0, input_bucketname varchar(1024));
 
-# moving car
 # ALTER TABLE jobs ADD COLUMN job_type int DEFAULT 0
 # ALTER TABLE jobs ADD COLUMN created_at datetime DEFAULT CURRENT_TIMESTAMP
 
 # ALTER TABLE jobs ADD COLUMN input_bucketname varchar(1024);
 
+# ALTER TABLE jobs ADD COLUMN job_start_time datetime;
+# ALTER TABLE jobs ADD COLUMN job_end_time datetime;
