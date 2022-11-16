@@ -7,17 +7,11 @@ function error_file_exists {
   aws --endpoint-url 'http://s3-bos.wgbh.org' s3api head-object --bucket $DRTRANSCODE_OUTPUT_BUCKET --key $errorfilename &> /dev/null
 }
 
-# download input file
-workspace_folder=/workspace/"$DRTRANSCODE_UID"
-mkdir -p $workspace_folder
-cd $workspace_folder
-
 # exit
 [ -z "$DRTRANSCODE_OUTPUT_BUCKET" ] && [ -z "$DRTRANSCODE_INPUT_BUCKET" ] && [ -z "$DRTRANSCODE_INPUT_KEY" ] && echo "Missing DRTRANSCODE env variables, bye bye!" && exit 1
-# stay open...
-# [ -z "$DRTRANSCODE_BUCKET" ] && [ -z "$DRTRANSCODE_INPUT_KEY" ] && [ -z "$DRTRANSCODE_OUTPUT_FILENAME" ] && [ -z "$destination_output_key" ] && echo "Missing DRTRANSCODE env variables, bye bye!" && tail -f /dev/null
 
-# need to get nonzero code from this in order to proceed
+# download input file
+workspace_folder=/workspace/"$DRTRANSCODE_UID"
 
 echo "Building expected output filename..."
 # just filename without path
@@ -33,7 +27,6 @@ keypath=$(dirname "$DRTRANSCODE_INPUT_KEY")
 # s3:streaming-proxies//< folder named after input bucket name>/<full input key path from input bucket>/< input filename but with mp4 extension >
 destination_output_key="$DRTRANSCODE_INPUT_BUCKET"/"$keypath"/"$mp4filename"
 
-
 if output_file_exists;
   then
     echo "Output file already exists, I've no purpose in this world... Goodbye!"
@@ -45,6 +38,12 @@ if error_file_exists;
     echo "Error file found, I should fail this job... Bye!"
     exit 0
 fi
+
+mkdir -p $workspace_folder
+cd $workspace_folder
+
+# stay open...
+# [ -z "$DRTRANSCODE_BUCKET" ] && [ -z "$DRTRANSCODE_INPUT_KEY" ] && [ -z "$DRTRANSCODE_OUTPUT_FILENAME" ] && [ -z "$destination_output_key" ] && echo "Missing DRTRANSCODE env variables, bye bye!" && tail -f /dev/null
 
 echo "LISTEN"
 echo "Downloading input file to $local_input_filepath..."
@@ -85,19 +84,19 @@ echo "Chose aspect ratio setting $aspect_ratio"
 # run video transcode
 if [[ "$local_input_filepath" == *dv ]]
   then
-  ffmpeg_output=$( ffmpeg -i $local_input_filepath -vcodec libx264 -pix_fmt yuv420p -b:v 711k $aspect_ratio -acodec aac -ac 2 -b:a 128k -metadata creation_time=now $local_output_filepath 2>&1 )
+  ffmpeg_output=$( ffmpeg -y -i $local_input_filepath -vcodec libx264 -pix_fmt yuv420p -b:v 711k $aspect_ratio -acodec aac -ac 2 -b:a 128k -metadata creation_time=now $local_output_filepath 2>&1 )
   ffmpeg_return="${PIPESTATUS[0]}"
 fi
 
 if [[ "$local_input_filepath" == *mkv ]]
   then
-  ffmpeg_output=$( ffmpeg -i $local_input_filepath -vcodec libx264 -pix_fmt yuv420p -b:v 711k $aspect_ratio -acodec aac -ac 2 -b:a 128k -metadata creation_time=now $local_output_filepath 2>&1 )
+  ffmpeg_output=$( ffmpeg -y -i $local_input_filepath -vcodec libx264 -pix_fmt yuv420p -b:v 711k $aspect_ratio -acodec aac -ac 2 -b:a 128k -metadata creation_time=now $local_output_filepath 2>&1 )
   ffmpeg_return="${PIPESTATUS[0]}"
 fi
 
 if [[ "$local_input_filepath" == *mov ]]
   then
-  ffmpeg_output=$( ffmpeg -i $local_input_filepath -vcodec libx264 -pix_fmt yuv420p -b:v 711k $aspect_ratio -acodec aac -ac 2 -b:a 128k -metadata creation_time=now $local_output_filepath 2>&1 )
+  ffmpeg_output=$( ffmpeg -y -i $local_input_filepath -vcodec libx264 -pix_fmt yuv420p -b:v 711k $aspect_ratio -acodec aac -ac 2 -b:a 128k -metadata creation_time=now $local_output_filepath 2>&1 )
   ffmpeg_return="${PIPESTATUS[0]}"
 fi
 
@@ -105,7 +104,7 @@ fi
 if [[ "$local_input_filepath" == *wav ]]
   then
   # mp4 extension in output filename will correctly wrap aac in mp4 container
-  ffmpeg_output=$( ffmpeg -i $local_input_filepath -acodec aac $local_output_filepath 2>&1 )
+  ffmpeg_output=$( ffmpeg -y -i $local_input_filepath -acodec aac $local_output_filepath 2>&1 )
   ffmpeg_return="${PIPESTATUS[0]}"
 fi
 
@@ -135,8 +134,8 @@ aws --endpoint-url 'http://s3-bos.wgbh.org' s3api put-object-acl --bucket $DRTRA
 
 # clean up
 echo "Deleting finished files at /workspace/"$DRTRANSCODE_UID"/"
-rm /workspace/"$DRTRANSCODE_UID"/*
-rmdir /workspace/"$DRTRANSCODE_UID"
+# rm /workspace/"$DRTRANSCODE_UID"/*
+rm -rf /workspace/"$DRTRANSCODE_UID"
 
 # bye!
 

@@ -182,12 +182,13 @@ spec:
         defaultMode: 256
         optional: false
         secretName: obstoresecrets
-    - name: dr-transcode-workarea
+    - name: dr-transcode-workarea-new
       persistentVolumeClaim:
-        claimName: dr-transcode-workarea
+        claimName: dr-transcode-workarea-new
   containers:
     - name: dr-ffmpeg
       image: foggbh/dr-ffmpeg:latest
+      imagePullPolicy: Always
       resources:
         limits:
           memory: "2000Mi"
@@ -197,7 +198,7 @@ spec:
         name: obstoresecrets
         readOnly: true
       - mountPath: /workspace
-        name: dr-transcode-workarea
+        name: dr-transcode-workarea-new
       env:
       - name: DRTRANSCODE_UID
         value: #{uid}
@@ -230,12 +231,13 @@ spec:
         defaultMode: 256
         optional: false
         secretName: obstoresecrets
-    - name: dr-transcode-workarea
+    - name: dr-transcode-workarea-new
       persistentVolumeClaim:
-        claimName: dr-transcode-workarea 
+        claimName: dr-transcode-workarea-new 
   containers:
     - name: dr-ffmpeg
       image: foggbh/dr-ffmpeg-audiosplit:latest
+      imagePullPolicy: Always
       resources:
         limits:
           memory: "2000Mi"
@@ -245,7 +247,7 @@ spec:
         name: obstoresecrets
         readOnly: true
       - mountPath: /workspace
-        name: dr-transcode-workarea
+        name: dr-transcode-workarea-new
       env:
       - name: DRTRANSCODE_UID
         value: #{uid}

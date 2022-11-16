@@ -18,7 +18,7 @@ end
 
 # load db..
 @client = Mysql2::Client.new(host: "mysql", username: "root", database: "drtranscode", password: "", port: 3306)
-File.read("novo3403fixed.txt").split("\n").each do |key|
+File.read("regenerateTheseProxies.txt").split("\n").each do |key|
 
   uid = SecureRandom.uuid
   input_bucketname = "nehdigitization"
