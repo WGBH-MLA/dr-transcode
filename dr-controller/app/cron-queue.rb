@@ -9,6 +9,7 @@ module JobStatus
   Working = 1
   CompletedWork = 2
   Failed = 3
+  BadDuration = 4
 end
 
 module JobType
@@ -141,6 +142,11 @@ def handle_stopping_jobs(jobs)
       puts `kubectl --kubeconfig=/mnt/kubectl-secret --namespace=dr-transcode delete pod #{pod_name}`
       set_job_status(job["uid"], JobStatus::CompletedWork)
       set_job_end_time(job["uid"])
+
+      handle_durations_file(job["uid"])
+
+      puts "Cleaning workspace folder for completed job #{job["uid"]}"
+      puts `rm -rf /workspace/#{job["uid"]}`
     else
 
       # check for error file...
@@ -154,6 +160,9 @@ def handle_stopping_jobs(jobs)
         puts `kubectl --kubeconfig=/mnt/kubectl-secret --namespace=dr-transcode delete pod #{pod_name}`  
         set_job_status(job["uid"], JobStatus::Failed, "Error file was found, failing")
         set_job_end_time(job["uid"])
+
+        puts "Cleaning workspace folder for failed job #{job["uid"]}"
+        puts `rm -rf /workspace/#{job["uid"]}`
       else 
         puts "Job #{job["uid"]} isnt done, keeeeeeeep going!"
       end
@@ -417,6 +426,27 @@ def set_job_end_time(uid)
   @client.query(%(UPDATE jobs SET job_end_time="#{Time.now.strftime('%Y-%m-%d %H:%M:%S')}" WHERE uid="#{uid}"))
 end
 
+def set_durations(uid, original_duration, proxy_duration)
+  @client.query(%(UPDATE jobs SET original_file_duration="#{ original_duration }", proxy_file_duration=#{ proxy_duration } WHERE uid="#{ uid }"))
+end
+
+def handle_durations_file(uid)
+  puts "Getting durations file #{uid}..."
+  `aws --endpoint-url 'http://s3-bos.wgbh.org' s3api get-object --bucket streaming-proxies --key "#{uid}-durations.txt" "#{uid}-durations.txt"`
+  job_uid, bucket, key, original_duration, proxy_duration = File.read("#{uid}-durations.txt").split(",")
+
+  set_durations(uid, original_duration, proxy_duration)
+  if (proxy_duration.to_f.round - original_duration.to_f.round).abs > 2
+    # if discrepancy between mkv and proxy duration values is 2s+
+    puts "Eww! I got a bad duration #{job["uid"]} - #{proxy_duration.to_f.round - original_duration.to_f.round).abs} - #{original_duration} - #{proxy_duration}"
+    set_job_status(job["uid"], JobStatus::BadDuration)
+  end
+
+  puts "Deleting durations file #{uid}..."
+  `rm #{uid}-durations.txt`
+  `aws --endpoint-url 'http://s3-bos.wgbh.org' s3api delete-object --bucket streaming-proxies --key "#{uid}-durations.txt"`
+end
+
 # check if its time to LIVE
 # because this runs in a cron, regular config-mapped ENV vars are not available, so get it from filemount
 queue_url = File.read('/root/queueurl/DRTRANSCODE_QUEUE_URL')
@@ -442,7 +472,7 @@ handle_stopping_jobs(jobs)
     
 # end
 
-# CREATE TABLE jobs (uid varchar(255), status int, input_filepath varchar(1024), fail_reason varchar(1024), created_at datetime DEFAULT CURRENT_TIMESTAMP), job_type int DEFAULT 0, input_bucketname varchar(1024));
+# CREATE TABLE jobs (uid varchar(255), status int, input_filepath varchar(1024), fail_reason varchar(1024), created_at datetime DEFAULT CURRENT_TIMESTAMP), job_type int DEFAULT 0, input_bucketname varchar(1024), original_file_duration float, proxy_file_duration float);
 
 # ALTER TABLE jobs ADD COLUMN job_type int DEFAULT 0
 # ALTER TABLE jobs ADD COLUMN created_at datetime DEFAULT CURRENT_TIMESTAMP
@@ -451,3 +481,6 @@ handle_stopping_jobs(jobs)
 
 # ALTER TABLE jobs ADD COLUMN job_start_time datetime;
 # ALTER TABLE jobs ADD COLUMN job_end_time datetime;
+
+# ALTER TABLE jobs ADD COLUMN original_file_duration float;
+# ALTER TABLE jobs ADD COLUMN proxy_file_duration float;

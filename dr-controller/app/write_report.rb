@@ -1,20 +1,27 @@
-
 require 'csv'
 require 'mysql2'
 require 'pathname'
 
 # pass in query if you like
 query = ARGV[0]
+unique = ARGV[1]
 
 @client = Mysql2::Client.new(host: "mysql", username: "root", database: "drtranscode", password: "", port: 3306)
 
-jobs = @client.query("SELECT * FROM jobs")
-CSV.open("alljobs-#{ Time.now.strftime("%m-%e-%y-%H:%M") }.csv", "wb") do |csv|
-  csv << ['UID', "JobStatus", "Job Type", "Input Filepath", "Input Bucket", "Created At", "Fail Reason"]
+if !query
+  query = "SELECT * FROM jobs"
+end
 
-  uniquejobs = jobs.uniq {|job| job["input_filepath"]+job["input_bucketname"] }
-  uniquejobs.each do |job|
-    csv << [ job["uid"], job["status"], job["job_type"], job["input_filepath"], job["input_bucketname"], job["created_at"], job["fail_reason"] ]
+jobs = @client.query(query)
+CSV.open("jobreport-#{ Time.now.strftime("%m-%e-%y-%H:%M") }.csv", "wb") do |csv|
+  csv << ['UID', "JobStatus", "Job Type", "Input Filepath", "Input Bucket", "Created At", "Job Start Time", "Job End Time", "Fail Reason"]
+
+  if unique == "unique"
+    jobs = jobs.uniq {|job| job["input_filepath"]+job["input_bucketname"] }
+  end
+
+  jobs.each do |job|
+    csv << [ job["uid"], job["status"], job["job_type"], job["input_filepath"], job["input_bucketname"], job["created_at"], job["job_start_time"], job["job_end_time"], job["fail_reason"] ]
   end
 end
 

@@ -7,6 +7,23 @@ function error_file_exists {
   aws --endpoint-url 'http://s3-bos.wgbh.org' s3api head-object --bucket $DRTRANSCODE_OUTPUT_BUCKET --key $errorfilename &> /dev/null
 }
 
+function duration {
+  out=$(ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 $1)
+  if [ -z "$out" ];
+    then
+      echo 0
+      # otherwise default 0
+    else
+      # if output present then send it
+      echo "${out}"
+  fi
+}
+
+function check_durations_to_file {
+  echo "${DRTRANSCODE_UID},${DRTRANSCODE_INPUT_BUCKET},${DRTRANSCODE_INPUT_KEY},$(duration $local_input_filepath ),$(duration $local_output_filepath)" > "${DRTRANSCODE_UID}-durations.txt"
+}
+
+
 # exit
 [ -z "$DRTRANSCODE_OUTPUT_BUCKET" ] && [ -z "$DRTRANSCODE_INPUT_BUCKET" ] && [ -z "$DRTRANSCODE_INPUT_KEY" ] && echo "Missing DRTRANSCODE env variables, bye bye!" && exit 1
 
@@ -49,7 +66,7 @@ echo "LISTEN"
 echo "Downloading input file to $local_input_filepath..."
 aws --endpoint-url 'http://s3-bos.wgbh.org' s3api get-object --bucket $DRTRANSCODE_INPUT_BUCKET --key $DRTRANSCODE_INPUT_KEY $local_input_filepath
 
-echo "Running ffprobe..."
+echo "Running ffprobe to check aspect ratio..."
 ffprobe_output=$( ffprobe $local_input_filepath 2>&1  )
 ffprobe_return="${PIPESTATUS[0]}"
 
@@ -125,17 +142,24 @@ then
   exit 1
 fi
 
+
+echo "Finished transcode, getting durations..."
+check_durations_to_file
+aws --endpoint-url 'http://s3-bos.wgbh.org' s3api put-object --bucket $DRTRANSCODE_OUTPUT_BUCKET --key $"${DRTRANSCODE_UID}-durations.txt" --body $"${DRTRANSCODE_UID}-durations.txt"
+
+
 # # upload output file to s3
+echo "Uploading output file..."
 aws --endpoint-url 'http://s3-bos.wgbh.org' s3api put-object --bucket $DRTRANSCODE_OUTPUT_BUCKET --key $destination_output_key --body $local_output_filepath
 
 # add public acl to de file
 aws --endpoint-url 'http://s3-bos.wgbh.org' s3api put-object-acl --bucket $DRTRANSCODE_OUTPUT_BUCKET --key $destination_output_key --acl public-read
 
 
-# clean up
-echo "Deleting finished files at /workspace/"$DRTRANSCODE_UID"/"
-# rm /workspace/"$DRTRANSCODE_UID"/*
-rm -rf /workspace/"$DRTRANSCODE_UID"
+# clean up (do this on the controller now)
+# echo "Deleting finished files at /workspace/"$DRTRANSCODE_UID"/"
+# # rm /workspace/"$DRTRANSCODE_UID"/*
+# rm -rf /workspace/"$DRTRANSCODE_UID"
 
 # bye!
 

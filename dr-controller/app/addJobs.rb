@@ -7,6 +7,7 @@ module JobStatus
   Working = 1
   CompletedWork = 2
   Failed = 3
+  BadDuration = 4
 end
 
 module JobType
@@ -18,10 +19,12 @@ end
 
 # load db..
 @client = Mysql2::Client.new(host: "mysql", username: "root", database: "drtranscode", password: "", port: 3306)
-File.read("regenerateTheseProxies.txt").split("\n").each do |key|
+File.read("regen-these-1-13-23.txt").split("\n").each do |row|
+
+  bucket, key = row.split(",")
 
   uid = SecureRandom.uuid
-  input_bucketname = "nehdigitization"
+  input_bucketname = bucket
 
   query = %(INSERT INTO jobs (uid, status, input_filepath, job_type, input_bucketname) VALUES("#{uid}", #{JobStatus::Received}, "#{key}", #{JobType::CreateProxy}, "#{input_bucketname}"))
   puts "Now doing..."
