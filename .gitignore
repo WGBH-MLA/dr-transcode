@@ -13,3 +13,7 @@ missing-*
 dr-controller/Gemfile
 dr-controller/spec-cron-queue.rb
 dr-controller/fixtures
+
+
+video/
+creds/

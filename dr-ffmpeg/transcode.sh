@@ -7,6 +7,36 @@ function error_file_exists {
   aws --endpoint-url 'http://s3-bos.wgbh.org' s3api head-object --bucket $DRTRANSCODE_OUTPUT_BUCKET --key $errorfilename &> /dev/null
 }
 
+function increment_retry_file {
+  retryfilename="retry-${DRTRANSCODE_UID}.txt"
+  # get retry count file
+  aws --endpoint-url 'http://s3-bos.wgbh.org' s3api get-object --bucket $DRTRANSCODE_OUTPUT_BUCKET --key dr-transcode-retries/$retryfilename $retryfilename
+
+  if [[ -f $retryfilename ]]
+  then
+    retry_count=$(cat ${retryfilename})
+    retry_count=$(($retry_count+1))
+  else
+    retry_count=0
+
+  fi
+
+  # retry_count=$(cat ${retryfilename})
+
+  # # increment retry count
+  # if [[ retry_count > 0 ]]
+  # then
+  #   retry_count=$(($retry_count+1))
+  # else
+  #   retry_count=1
+  # fi
+
+  # write new retry count to file
+  echo $retry_count > $retryfilename
+
+  aws --endpoint-url 'http://s3-bos.wgbh.org' s3api put-object --bucket $DRTRANSCODE_OUTPUT_BUCKET --key dr-transcode-retries/$retryfilename --body $retryfilename
+}
+
 function duration {
   out=$(ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 $1)
   if [ -z "$out" ];
@@ -20,9 +50,21 @@ function duration {
 }
 
 function check_durations_to_file {
-  echo "${DRTRANSCODE_UID},${DRTRANSCODE_INPUT_BUCKET},${DRTRANSCODE_INPUT_KEY},$(duration $local_input_filepath ),$(duration $local_output_filepath)" > "${DRTRANSCODE_UID}-durations.txt"
+  oduration=$(duration $local_input_filepath)
+  pduration=$(duration $local_output_filepath)
+
+  # write durations and metadata to file
+  echo "${DRTRANSCODE_UID},${DRTRANSCODE_INPUT_BUCKET},${DRTRANSCODE_INPUT_KEY},${oduration},${pduration}" > "${workspace_folder}/${DRTRANSCODE_UID}-durations.txt"
+
+ if [[ $(printf "%.0f\n" "${oduration}") == $(printf "%.0f\n" "${pduration}") ]]
+ then
+    return 1
+  else
+    return 0
+  fi
 }
 
+echo "First, you show this!"
 
 # exit
 [ -z "$DRTRANSCODE_OUTPUT_BUCKET" ] && [ -z "$DRTRANSCODE_INPUT_BUCKET" ] && [ -z "$DRTRANSCODE_INPUT_KEY" ] && echo "Missing DRTRANSCODE env variables, bye bye!" && exit 1
@@ -64,7 +106,17 @@ cd $workspace_folder
 
 echo "LISTEN"
 echo "Downloading input file to $local_input_filepath..."
-aws --endpoint-url 'http://s3-bos.wgbh.org' s3api get-object --bucket $DRTRANSCODE_INPUT_BUCKET --key $DRTRANSCODE_INPUT_KEY $local_input_filepath
+# aws --endpoint-url 'http://s3-bos.wgbh.org' s3api get-object --bucket $DRTRANSCODE_INPUT_BUCKET --key $DRTRANSCODE_INPUT_KEY $local_input_filepath
+# redirect stderr to this var
+download_output=$(aws --endpoint-url 'http://s3-bos.wgbh.org' s3api get-object --bucket $DRTRANSCODE_INPUT_BUCKET --key $DRTRANSCODE_INPUT_KEY $local_input_filepath 2>&1)
+if [[ $download_output == *"read, but total bytes expected is"* ]]; then
+  # if we got the bad thing, say NO
+  echo "Did not receive the whole file from S3, increment retry file, delete, and try again!!"
+  rm -rf ${ workspace_folder }
+  increment_retry_file
+  exit 1
+fi
+
 
 echo "Running ffprobe to check aspect ratio..."
 ffprobe_output=$( ffprobe $local_input_filepath 2>&1  )
@@ -101,18 +153,28 @@ echo "Chose aspect ratio setting $aspect_ratio"
 # run video transcode
 if [[ "$local_input_filepath" == *dv ]]
   then
+  echo "Detected dv file, doing ffmpeg...!"
   ffmpeg_output=$( ffmpeg -y -i $local_input_filepath -vcodec libx264 -pix_fmt yuv420p -b:v 711k $aspect_ratio -acodec aac -ac 2 -b:a 128k -metadata creation_time=now $local_output_filepath 2>&1 )
   ffmpeg_return="${PIPESTATUS[0]}"
 fi
 
 if [[ "$local_input_filepath" == *mkv ]]
   then
+  echo "Detected mkv file, doing ffmpeg...!"
   ffmpeg_output=$( ffmpeg -y -i $local_input_filepath -vcodec libx264 -pix_fmt yuv420p -b:v 711k $aspect_ratio -acodec aac -ac 2 -b:a 128k -metadata creation_time=now $local_output_filepath 2>&1 )
   ffmpeg_return="${PIPESTATUS[0]}"
 fi
 
 if [[ "$local_input_filepath" == *mov ]]
   then
+  echo "Detected mov file, doing ffmpeg...!"
+  ffmpeg_output=$( ffmpeg -y -i $local_input_filepath -vcodec libx264 -pix_fmt yuv420p -b:v 711k $aspect_ratio -acodec aac -ac 2 -b:a 128k -metadata creation_time=now $local_output_filepath 2>&1 )
+  ffmpeg_return="${PIPESTATUS[0]}"
+fi
+
+if [[ "$local_input_filepath" == *dif ]]
+  then
+  echo "Detected dif file, doing ffmpeg...!"
   ffmpeg_output=$( ffmpeg -y -i $local_input_filepath -vcodec libx264 -pix_fmt yuv420p -b:v 711k $aspect_ratio -acodec aac -ac 2 -b:a 128k -metadata creation_time=now $local_output_filepath 2>&1 )
   ffmpeg_return="${PIPESTATUS[0]}"
 fi
@@ -144,22 +206,49 @@ fi
 
 
 echo "Finished transcode, getting durations..."
-check_durations_to_file
-aws --endpoint-url 'http://s3-bos.wgbh.org' s3api put-object --bucket $DRTRANSCODE_OUTPUT_BUCKET --key $"${DRTRANSCODE_UID}-durations.txt" --body $"${DRTRANSCODE_UID}-durations.txt"
+
+oduration=$(duration $local_input_filepath)
+pduration=$(duration $local_output_filepath)
+
+# write durations and metadata to file
+echo "${DRTRANSCODE_UID},${DRTRANSCODE_INPUT_BUCKET},${DRTRANSCODE_INPUT_KEY},${oduration},${pduration}" > "${workspace_folder}/${DRTRANSCODE_UID}-durations.txt"
 
 
-# # upload output file to s3
-echo "Uploading output file..."
-aws --endpoint-url 'http://s3-bos.wgbh.org' s3api put-object --bucket $DRTRANSCODE_OUTPUT_BUCKET --key $destination_output_key --body $local_output_filepath
+if [[ $(printf "%.0f\n" "${oduration}") == $(printf "%.0f\n" "${pduration}") ]]
+then
+  echo "Durations matched!"
 
-# add public acl to de file
-aws --endpoint-url 'http://s3-bos.wgbh.org' s3api put-object-acl --bucket $DRTRANSCODE_OUTPUT_BUCKET --key $destination_output_key --acl public-read
+  # # upload output file to s3
+  echo "Uploading output file..."
+  aws --endpoint-url 'http://s3-bos.wgbh.org' s3api put-object --bucket $DRTRANSCODE_OUTPUT_BUCKET --key $destination_output_key --body $local_output_filepath
+
+  # add public acl to de file
+  aws --endpoint-url 'http://s3-bos.wgbh.org' s3api put-object-acl --bucket $DRTRANSCODE_OUTPUT_BUCKET --key $destination_output_key --acl public-read
+
+else
+  echo "Oh lord! bad durations did not match $(cat "${DRTRANSCODE_UID}-durations.txt")"
+  # clean up work files you curse-ed beast
+  rm -rf ${ workspace_folder }
+
+  # oh god, not again!
+  # job will autoretry after reboot
+fi
 
 
-# clean up (do this on the controller now)
-# echo "Deleting finished files at /workspace/"$DRTRANSCODE_UID"/"
-# # rm /workspace/"$DRTRANSCODE_UID"/*
-# rm -rf /workspace/"$DRTRANSCODE_UID"
+
+
+
+# upload durations file to obsto (controller will pick up if applicable)
+echo "Uploading durations file ${DRTRANSCODE_UID}-durations.txt"
+echo "OK! $(pwd && ls)"
+echo "catted $(cat $workspace_folder/$DRTRANSCODE_UID-durations.txt)"
+aws --endpoint-url 'http://s3-bos.wgbh.org' s3api put-object --bucket $DRTRANSCODE_OUTPUT_BUCKET --key "${DRTRANSCODE_UID}-durations.txt" --body "${workspace_folder}/${DRTRANSCODE_UID}-durations.txt"
+echo "]!"
+
+
+increment_retry_file
+# (retry uses the same pod, because the output file will not be present, so job will just start over)
+
 
 # bye!
 

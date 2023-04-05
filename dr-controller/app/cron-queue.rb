@@ -136,6 +136,9 @@ def handle_stopping_jobs(jobs)
     pod_name = get_pod_name(job["uid"], job["job_type"])
     # (now *this* is pod naming)
 
+    # set retry_count every time touch a job, so we know when its retry-looping without the job having to complete
+    handle_retry_file(job["uid"])
+
     if job_finished
       # head-object returns "" in this context when 404, otherwise gives a zesty pan-fried json message as a String
       puts "Job Succeeded - Attempting to delete pod #{pod_name}"
@@ -200,8 +203,8 @@ spec:
       imagePullPolicy: Always
       resources:
         limits:
-          memory: "2000Mi"
-          cpu: "1000m"
+          memory: "4000Mi"
+          cpu: "2000m"
       volumeMounts:
       - mountPath: /root/.aws
         name: obstoresecrets
@@ -249,8 +252,8 @@ spec:
       imagePullPolicy: Always
       resources:
         limits:
-          memory: "2000Mi"
-          cpu: "1000m"
+          memory: "4000Mi"
+          cpu: "2000m"
       volumeMounts:
       - mountPath: /root/.aws
         name: obstoresecrets
@@ -436,15 +439,30 @@ def handle_durations_file(uid)
   job_uid, bucket, key, original_duration, proxy_duration = File.read("#{uid}-durations.txt").split(",")
 
   set_durations(uid, original_duration, proxy_duration)
+
+  # because jobs now auto-retry, this shouldn't be able to happen
   if (proxy_duration.to_f.round - original_duration.to_f.round).abs > 2
+
     # if discrepancy between mkv and proxy duration values is 2s+
-    puts "Eww! I got a bad duration #{job["uid"]} - #{proxy_duration.to_f.round - original_duration.to_f.round).abs} - #{original_duration} - #{proxy_duration}"
-    set_job_status(job["uid"], JobStatus::BadDuration)
+    puts "Eww! I got a bad duration #{uid} - #{(proxy_duration.to_f.round - original_duration.to_f.round).abs} - #{original_duration} - #{proxy_duration}"
+    set_job_status(uid, JobStatus::BadDuration)
   end
 
   puts "Deleting durations file #{uid}..."
   `rm #{uid}-durations.txt`
   `aws --endpoint-url 'http://s3-bos.wgbh.org' s3api delete-object --bucket streaming-proxies --key "#{uid}-durations.txt"`
+end
+
+def handle_retry_file(uid)
+  puts "Getting retry file #{uid}..."
+  retryfilename = "retry-#{uid}.txt"
+  `aws --endpoint-url 'http://s3-bos.wgbh.org' s3api get-object --bucket streaming-proxies --key "dr-transcode-retries/#{retryfilename}" "#{retryfilename}"`
+  number_retries = `cat #{retryfilename}`
+  `rm #{retryfilename}`
+
+  @client.query(%(UPDATE jobs SET retry_count="#{ number_retries }" WHERE uid="#{ uid }"))
+
+  `aws --endpoint-url 'http://s3-bos.wgbh.org' s3api delete-object --bucket streaming-proxies --key "dr-transcode-retries/#{retryfilename}"`
 end
 
 # check if its time to LIVE
@@ -458,7 +476,7 @@ queue_url = File.read('/root/queueurl/DRTRANSCODE_QUEUE_URL')
 # process_sqs_messages(queue_url, msgs)
 
 # actually start jobs that we successfully initted above - limit 8 so we dont ask 'how many pods' a thousand times every cycle, but have enough of a buffer to get 4 new pods for any issues talking to kube
-jobs = @client.query("SELECT * FROM jobs WHERE status=#{JobStatus::Received} LIMIT 8")
+jobs = @client.query("SELECT * FROM jobs WHERE status=#{JobStatus::Received} ORDER BY created_at ASC LIMIT 8")
 puts "Found #{jobs.count} jobs with JS::Received"
 handle_starting_jobs(jobs)
 
@@ -472,7 +490,7 @@ handle_stopping_jobs(jobs)
     
 # end
 
-# CREATE TABLE jobs (uid varchar(255), status int, input_filepath varchar(1024), fail_reason varchar(1024), created_at datetime DEFAULT CURRENT_TIMESTAMP), job_type int DEFAULT 0, input_bucketname varchar(1024), original_file_duration float, proxy_file_duration float);
+# CREATE TABLE jobs (uid varchar(255), status int, input_filepath varchar(1024), fail_reason varchar(1024), created_at datetime DEFAULT CURRENT_TIMESTAMP), job_type int DEFAULT 0, input_bucketname varchar(1024), original_file_duration float, proxy_file_duration float, retry_count int);
 
 # ALTER TABLE jobs ADD COLUMN job_type int DEFAULT 0
 # ALTER TABLE jobs ADD COLUMN created_at datetime DEFAULT CURRENT_TIMESTAMP
@@ -484,3 +502,4 @@ handle_stopping_jobs(jobs)
 
 # ALTER TABLE jobs ADD COLUMN original_file_duration float;
 # ALTER TABLE jobs ADD COLUMN proxy_file_duration float;
+# ALTER TABLE jobs ADD COLUMN retry_count int;
