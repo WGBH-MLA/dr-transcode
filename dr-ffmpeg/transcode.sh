@@ -9,6 +9,9 @@ function error_file_exists {
 
 function increment_retry_file {
   retryfilename="retry-${DRTRANSCODE_UID}.txt"
+  touch $retryfilename
+  echo 0 > $retryfilename
+  
   # get retry count file
   aws --endpoint-url 'http://s3-bos.wgbh.org' s3api get-object --bucket $DRTRANSCODE_OUTPUT_BUCKET --key dr-transcode-retries/$retryfilename $retryfilename
 
@@ -18,7 +21,6 @@ function increment_retry_file {
     retry_count=$(($retry_count+1))
   else
     retry_count=0
-
   fi
 
   # retry_count=$(cat ${retryfilename})
@@ -71,6 +73,9 @@ echo "First, you show this!"
 
 # download input file
 workspace_folder=/workspace/"$DRTRANSCODE_UID"
+# temp v
+# workspace_folder=/root/"$DRTRANSCODE_UID"
+
 
 echo "Building expected output filename..."
 # just filename without path
@@ -112,7 +117,7 @@ download_output=$(aws --endpoint-url 'http://s3-bos.wgbh.org' s3api get-object -
 if [[ $download_output == *"read, but total bytes expected is"* ]]; then
   # if we got the bad thing, say NO
   echo "Did not receive the whole file from S3, increment retry file, delete, and try again!!"
-  rm -rf ${ workspace_folder }
+  rm -rf "$workspace_folder"
   increment_retry_file
   exit 1
 fi
@@ -179,6 +184,20 @@ if [[ "$local_input_filepath" == *dif ]]
   ffmpeg_return="${PIPESTATUS[0]}"
 fi
 
+if [[ "$local_input_filepath" == *mxf ]]
+  then
+  echo "Detected mxf file, doing ffmpeg...!"
+  ffmpeg_output=$( ffmpeg -y -i $local_input_filepath -vcodec libx264 -pix_fmt yuv420p -b:v 711k $aspect_ratio -acodec aac -ac 2 -b:a 128k -metadata creation_time=now $local_output_filepath 2>&1 )
+  ffmpeg_return="${PIPESTATUS[0]}"
+fi
+
+if [[ "$local_input_filepath" == *m2t ]]
+  then
+  echo "Detected m2t file, doing ffmpeg...!"
+  ffmpeg_output=$( ffmpeg -y -i $local_input_filepath -vcodec libx264 -pix_fmt yuv420p -b:v 711k $aspect_ratio -acodec aac -ac 2 -b:a 128k -metadata creation_time=now $local_output_filepath 2>&1 )
+  ffmpeg_return="${PIPESTATUS[0]}"
+fi
+
 # run audio transcode
 if [[ "$local_input_filepath" == *wav ]]
   then
@@ -228,7 +247,7 @@ then
 else
   echo "Oh lord! bad durations did not match $(cat "${DRTRANSCODE_UID}-durations.txt")"
   # clean up work files you curse-ed beast
-  rm -rf ${ workspace_folder }
+  rm -rf "${ workspace_folder }"
 
   # oh god, not again!
   # job will autoretry after reboot
@@ -241,8 +260,8 @@ fi
 # upload durations file to obsto (controller will pick up if applicable)
 echo "Uploading durations file ${DRTRANSCODE_UID}-durations.txt"
 echo "OK! $(pwd && ls)"
-echo "catted $(cat $workspace_folder/$DRTRANSCODE_UID-durations.txt)"
-aws --endpoint-url 'http://s3-bos.wgbh.org' s3api put-object --bucket $DRTRANSCODE_OUTPUT_BUCKET --key "${DRTRANSCODE_UID}-durations.txt" --body "${workspace_folder}/${DRTRANSCODE_UID}-durations.txt"
+echo "catted $(cat ${workspace_folder}/${DRTRANSCODE_UID}-durations.txt)"
+aws --endpoint-url 'http://s3-bos.wgbh.org' s3api put-object --bucket $DRTRANSCODE_OUTPUT_BUCKET --key "${DRTRANSCODE_UID}-durations.txt" --body "${workspace_folder}\/${DRTRANSCODE_UID}-durations.txt"
 echo "]!"
 
 

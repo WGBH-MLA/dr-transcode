@@ -17,7 +17,7 @@ RUN touch /var/log/queue-cron.log
 ADD app/ app/
 WORKDIR /root/app/
 RUN chmod +x /root/app/check_number_pods.sh
-RUN gem install bundler
+RUN gem install bundler -v 2.4.22
 RUN bundle install
 
 # bundler recommends using these if you havin trubb

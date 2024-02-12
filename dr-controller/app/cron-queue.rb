@@ -148,8 +148,9 @@ def handle_stopping_jobs(jobs)
 
       handle_durations_file(job["uid"])
 
-      puts "Cleaning workspace folder for completed job #{job["uid"]}"
-      puts `rm -rf /workspace/#{job["uid"]}`
+      delete_volume(job["uid"])
+      # puts "Cleaning workspace folder for completed job #{job["uid"]}"
+      # puts `rm -rf /workspace/#{job["uid"]}`
     else
 
       # check for error file...
@@ -164,8 +165,9 @@ def handle_stopping_jobs(jobs)
         set_job_status(job["uid"], JobStatus::Failed, "Error file was found, failing")
         set_job_end_time(job["uid"])
 
-        puts "Cleaning workspace folder for failed job #{job["uid"]}"
-        puts `rm -rf /workspace/#{job["uid"]}`
+        delete_volume(job["uid"])
+        # puts "Cleaning workspace folder for failed job #{job["uid"]}"
+        # puts `rm -rf /workspace/#{job["uid"]}`
       else 
         puts "Job #{job["uid"]} isnt done, keeeeeeeep going!"
       end
@@ -174,12 +176,30 @@ def handle_stopping_jobs(jobs)
   end
 end
 
+def delete_volume(uid)
+  puts "Deleting volume for #{uid}"
+  `kubectl --kubeconfig=/mnt/kubectl-secret --namespace=dr-transcode delete pvc dr-transcode-pvc-#{uid}`
+  `kubectl --kubeconfig=/mnt/kubectl-secret --namespace=dr-transcode delete pv dr-transcode-#{uid}  --grace-period=0 --force`
+end
+
 def build_pod_yml(uid, job_type, input_filepath, input_bucketname)
 
 
   if job_type == JobType::CreateProxy
 
     pod_yml_content = %{
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: dr-transcode-pvc-#{uid}
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: efs-sc-999
+  resources:
+    requests:
+      storage: 150Gi
+---
 apiVersion: v1
 kind: Pod
 metadata:
@@ -194,9 +214,9 @@ spec:
         defaultMode: 256
         optional: false
         secretName: obstoresecrets
-    - name: dr-transcode-workarea-new
+    - name: dr-transcode-#{uid} 
       persistentVolumeClaim:
-        claimName: dr-transcode-workarea-new
+        claimName: dr-transcode-pvc-#{uid}
   containers:
     - name: dr-ffmpeg
       image: foggbh/dr-ffmpeg:latest
@@ -210,7 +230,7 @@ spec:
         name: obstoresecrets
         readOnly: true
       - mountPath: /workspace
-        name: dr-transcode-workarea-new
+        name: dr-transcode-#{uid}
       env:
       - name: DRTRANSCODE_UID
         value: #{uid}
@@ -243,9 +263,9 @@ spec:
         defaultMode: 256
         optional: false
         secretName: obstoresecrets
-    - name: dr-transcode-workarea-new
+    - name: dr-transcode-#{uid}
       persistentVolumeClaim:
-        claimName: dr-transcode-workarea-new 
+        claimName: dr-transcode-#{uid}
   containers:
     - name: dr-ffmpeg
       image: foggbh/dr-ffmpeg-audiosplit:latest
@@ -259,7 +279,7 @@ spec:
         name: obstoresecrets
         readOnly: true
       - mountPath: /workspace
-        name: dr-transcode-workarea-new
+        name: dr-transcode-#{uid}
       env:
       - name: DRTRANSCODE_UID
         value: #{uid}
@@ -354,6 +374,7 @@ def validate_for_jobstart(uid, job_type, input_bucketname,  input_filepath)
   # check that input file exists
   unless check_file_exists(input_bucketname, input_filepath)
     set_job_status(uid, JobStatus::Failed, "Input file #{input_filepath} in bucket #{input_bucketname} was not found on Object Store...")
+    set_job_end_time(uid)
     return false
   end
 
@@ -364,6 +385,7 @@ def validate_for_jobstart(uid, job_type, input_bucketname,  input_filepath)
     output_filepath = get_output_key(input_bucketname, input_filepath)
     if check_file_exists("streaming-proxies", output_filepath)
       set_job_status(uid, JobStatus::Failed, "Output file #{output_filepath} in bucket streaming-proxies was already generated..!")
+      set_job_end_time(uid)
       return false
     end
   end
@@ -371,12 +393,17 @@ def validate_for_jobstart(uid, job_type, input_bucketname,  input_filepath)
   if (job_type == JobType::PreserveLeftAudio || job_type == JobType::PreserveRightAudio) && !input_filepath.end_with?(".mp4")
     # strip job only runs on proxy videos (already transcoded)
     set_job_status(uid, JobStatus::Failed, "Input file #{input_filepath} in bucket #{input_bucketname} for audio preserve job was not an mp4 file...")
+    set_job_end_time(uid)
     return false
   end
 
-  # check that file not too big
-  # TODO here we will read output as json... check ContentLength key for size bigness check
+  # size = get_file_size(input_bucketname, input_filepath)
+  # if size > 20000000000
+  #   set_job_status(uid, JobStatus::Failed, "TEMP:: #{input_filepath} in #{input_bucketname} was too big... #{size}")
+  #   return false
+  # end
 
+  # yay
   true
 end
 
@@ -389,6 +416,11 @@ def check_file_exists(bucket, file)
   s3_output = get_file_info(bucket, file)
   # ruby return value is "" for an s3 404
   s3_output && s3_output != ""
+end
+
+def get_file_size(bucket, file)
+  resp = get_file_info(bucket, file)
+  resp && resp != "" ? JSON.parse(resp)["ContentLength"] : 0
 end
 
 def init_job(input_bucketname, input_filepath, job_type=JobType::CreateProxy)
@@ -456,6 +488,9 @@ end
 def handle_retry_file(uid)
   puts "Getting retry file #{uid}..."
   retryfilename = "retry-#{uid}.txt"
+  # initialize it, will be overwritten by s3 if not
+  `touch #{retryfilename}`
+  `echo 0 > #{retryfilename}`
   `aws --endpoint-url 'http://s3-bos.wgbh.org' s3api get-object --bucket streaming-proxies --key "dr-transcode-retries/#{retryfilename}" "#{retryfilename}"`
   number_retries = `cat #{retryfilename}`
   `rm #{retryfilename}`
