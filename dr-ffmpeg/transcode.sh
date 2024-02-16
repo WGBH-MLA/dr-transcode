@@ -23,16 +23,6 @@ function increment_retry_file {
     retry_count=0
   fi
 
-  # retry_count=$(cat ${retryfilename})
-
-  # # increment retry count
-  # if [[ retry_count > 0 ]]
-  # then
-  #   retry_count=$(($retry_count+1))
-  # else
-  #   retry_count=1
-  # fi
-
   # write new retry count to file
   echo $retry_count > $retryfilename
 

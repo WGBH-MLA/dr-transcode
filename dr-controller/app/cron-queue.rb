@@ -26,7 +26,7 @@ unless num_running.to_i == 1
 end
 
 # load db..
-@client = Mysql2::Client.new(host: "mysql", username: "root", database: "drtranscode", password: "", port: 3306)
+@client = Mysql2::Client.new(host: "dr-mysql-service", username: "root", database: "drtranscode", password: "", port: 3306)
 
 # ruby aws-sdk-sqs does not support custom port numbers when specifying a custom endpoint, so just use the cli instead
 def receive_sqs_messages(queue_url)
