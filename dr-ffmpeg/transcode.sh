@@ -237,7 +237,7 @@ then
 else
   echo "Oh lord! bad durations did not match $(cat "${DRTRANSCODE_UID}-durations.txt")"
   # clean up work files you curse-ed beast
-  rm -rf "${ workspace_folder }"
+  rm -rf "${workspace_folder}"
 
   # oh god, not again!
   # job will autoretry after reboot
@@ -251,7 +251,7 @@ fi
 echo "Uploading durations file ${DRTRANSCODE_UID}-durations.txt"
 echo "OK! $(pwd && ls)"
 echo "catted $(cat ${workspace_folder}/${DRTRANSCODE_UID}-durations.txt)"
-aws --endpoint-url 'http://s3-bos.wgbh.org' s3api put-object --bucket $DRTRANSCODE_OUTPUT_BUCKET --key "${DRTRANSCODE_UID}-durations.txt" --body "${workspace_folder}\/${DRTRANSCODE_UID}-durations.txt"
+aws --endpoint-url 'http://s3-bos.wgbh.org' s3api put-object --bucket $DRTRANSCODE_OUTPUT_BUCKET --key "${DRTRANSCODE_UID}-durations.txt" --body "${workspace_folder}/${DRTRANSCODE_UID}-durations.txt"
 echo "]!"
 
 
