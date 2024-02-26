@@ -489,12 +489,13 @@ def handle_retry_file(uid)
   puts "Getting retry file #{uid}..."
   retryfilename = "retry-#{uid}.txt"
   # initialize it, will be overwritten by s3 if not
-  `touch #{retryfilename}`
-  `echo 0 > #{retryfilename}`
+
   `aws --endpoint-url 'http://s3-bos.wgbh.org' s3api get-object --bucket streaming-proxies --key "dr-transcode-retries/#{retryfilename}" "#{retryfilename}"`
   number_retries = `cat #{retryfilename}`
   `rm #{retryfilename}`
 
+
+  puts "duh retry for #{uid} is #{number_retries}"
   @client.query(%(UPDATE jobs SET retry_count="#{ number_retries }" WHERE uid="#{ uid }"))
 
   `aws --endpoint-url 'http://s3-bos.wgbh.org' s3api delete-object --bucket streaming-proxies --key "dr-transcode-retries/#{retryfilename}"`

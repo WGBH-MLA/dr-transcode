@@ -9,24 +9,27 @@ function error_file_exists {
 
 function increment_retry_file {
   retryfilename="retry-${DRTRANSCODE_UID}.txt"
-  touch $retryfilename
-  echo 0 > $retryfilename
   
   # get retry count file
-  aws --endpoint-url 'http://s3-bos.wgbh.org' s3api get-object --bucket $DRTRANSCODE_OUTPUT_BUCKET --key dr-transcode-retries/$retryfilename $retryfilename
 
-  if [[ -f $retryfilename ]]
+  echo "obviously my retry filename is ${retryfilename} and full key is dr-transcode-retries/${retryfilename}"
+  aws --endpoint-url 'http://s3-bos.wgbh.org' s3api get-object --bucket $DRTRANSCODE_OUTPUT_BUCKET --key "dr-transcode-retries/${retryfilename}" $retryfilename
+
+  if [ -f $retryfilename ]
   then
     retry_count=$(cat ${retryfilename})
     retry_count=$(($retry_count+1))
+    echo "I now increment to ${retry_count}"
   else
+    echo " i set retry to zero!"
     retry_count=0
   fi
 
   # write new retry count to file
   echo $retry_count > $retryfilename
+  echo "and you can see that $(cat $retryfilename)"
 
-  aws --endpoint-url 'http://s3-bos.wgbh.org' s3api put-object --bucket $DRTRANSCODE_OUTPUT_BUCKET --key dr-transcode-retries/$retryfilename --body $retryfilename
+  aws --endpoint-url 'http://s3-bos.wgbh.org' s3api put-object --bucket $DRTRANSCODE_OUTPUT_BUCKET --key "dr-transcode-retries/${retryfilename}" --body $retryfilename
 }
 
 function duration {
@@ -41,22 +44,7 @@ function duration {
   fi
 }
 
-function check_durations_to_file {
-  oduration=$(duration $local_input_filepath)
-  pduration=$(duration $local_output_filepath)
-
-  # write durations and metadata to file
-  echo "${DRTRANSCODE_UID},${DRTRANSCODE_INPUT_BUCKET},${DRTRANSCODE_INPUT_KEY},${oduration},${pduration}" > "${workspace_folder}/${DRTRANSCODE_UID}-durations.txt"
-
- if [[ $(printf "%.0f\n" "${oduration}") == $(printf "%.0f\n" "${pduration}") ]]
- then
-    return 1
-  else
-    return 0
-  fi
-}
-
-echo "First, you show this!"
+echo "Let us begin!"
 
 # exit
 [ -z "$DRTRANSCODE_OUTPUT_BUCKET" ] && [ -z "$DRTRANSCODE_INPUT_BUCKET" ] && [ -z "$DRTRANSCODE_INPUT_KEY" ] && echo "Missing DRTRANSCODE env variables, bye bye!" && exit 1
@@ -95,9 +83,6 @@ fi
 
 mkdir -p $workspace_folder
 cd $workspace_folder
-
-# stay open...
-# [ -z "$DRTRANSCODE_BUCKET" ] && [ -z "$DRTRANSCODE_INPUT_KEY" ] && [ -z "$DRTRANSCODE_OUTPUT_FILENAME" ] && [ -z "$destination_output_key" ] && echo "Missing DRTRANSCODE env variables, bye bye!" && tail -f /dev/null
 
 echo "LISTEN"
 echo "Downloading input file to $local_input_filepath..."
@@ -196,7 +181,6 @@ if [[ "$local_input_filepath" == *wav ]]
   ffmpeg_return="${PIPESTATUS[0]}"
 fi
 
-
 echo "ffmpeg output..."
 echo "$ffmpeg_output"
 
@@ -213,7 +197,6 @@ then
   exit 1
 fi
 
-
 echo "Finished transcode, getting durations..."
 
 oduration=$(duration $local_input_filepath)
@@ -222,10 +205,46 @@ pduration=$(duration $local_output_filepath)
 # write durations and metadata to file
 echo "${DRTRANSCODE_UID},${DRTRANSCODE_INPUT_BUCKET},${DRTRANSCODE_INPUT_KEY},${oduration},${pduration}" > "${workspace_folder}/${DRTRANSCODE_UID}-durations.txt"
 
+# upload durations file to obsto (controller will pick up if applicable)
+echo "Uploading durations file ${DRTRANSCODE_UID}-durations.txt"
+# echo "catted $(cat ${workspace_folder}/${DRTRANSCODE_UID}-durations.txt)"
+aws --endpoint-url 'http://s3-bos.wgbh.org' s3api put-object --bucket $DRTRANSCODE_OUTPUT_BUCKET --key "${DRTRANSCODE_UID}-durations.txt" --body "${workspace_folder}/${DRTRANSCODE_UID}-durations.txt"
+echo "]!"
 
-if [[ $(printf "%.0f\n" "${oduration}") == $(printf "%.0f\n" "${pduration}") ]]
+
+increment_retry_file
+# (retry uses the same pod, because the output file will not be present, so job will just start over)
+
+
+
+success=false
+# use bc for float math
+difference=$(echo "$pduration-$oduration" | bc -l)
+
+if [[ "$local_input_filepath" == *mov ]]
+  then
+  echo "Checking durations for mov file, allowing  +/-1s..."
+  
+  echo "For mov file, found difference of ${difference}"
+
+  if [[ $(echo "$difference>=-1" | bc -l) == 1 && $(echo "$difference<=1" | bc -l) == 1 ]]
+  then
+    echo "Found acceptable difference ${difference}"
+    success=true
+  else
+    echo "mov difference was unacceptable! ${difference}"
+  fi
+else
+  echo "Checking durations for regular file, allowing  +/-0.04s..."
+  if [[  $(echo "$difference>=-0.04" | bc -l) == 1 && $(echo "$difference<=0.04" | bc -l) == 1 ]]
+    then
+    echo "Durations were acceptable! Difference: ${difference}"
+    success=true
+  fi
+fi
+
+if [[ $success == true ]]
 then
-  echo "Durations matched!"
 
   # # upload output file to s3
   echo "Uploading output file..."
@@ -242,21 +261,6 @@ else
   # oh god, not again!
   # job will autoretry after reboot
 fi
-
-
-
-
-
-# upload durations file to obsto (controller will pick up if applicable)
-echo "Uploading durations file ${DRTRANSCODE_UID}-durations.txt"
-echo "OK! $(pwd && ls)"
-echo "catted $(cat ${workspace_folder}/${DRTRANSCODE_UID}-durations.txt)"
-aws --endpoint-url 'http://s3-bos.wgbh.org' s3api put-object --bucket $DRTRANSCODE_OUTPUT_BUCKET --key "${DRTRANSCODE_UID}-durations.txt" --body "${workspace_folder}/${DRTRANSCODE_UID}-durations.txt"
-echo "]!"
-
-
-increment_retry_file
-# (retry uses the same pod, because the output file will not be present, so job will just start over)
 
 
 # bye!
