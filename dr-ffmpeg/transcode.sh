@@ -15,18 +15,18 @@ function increment_retry_file {
   echo "obviously my retry filename is ${retryfilename} and full key is dr-transcode-retries/${retryfilename}"
   aws --endpoint-url 'http://s3-bos.wgbh.org' s3api get-object --bucket $DRTRANSCODE_OUTPUT_BUCKET --key "dr-transcode-retries/${retryfilename}" $retryfilename
 
-  if [ -f $retryfilename ]
+  if [[ -n "$retryfilename" && -f $retryfilename ]]
   then
     retry_count=$(cat ${retryfilename})
     retry_count=$(($retry_count+1))
     echo "I now increment to ${retry_count}"
+    echo $retry_count > $retryfilename
   else
     echo " i set retry to zero!"
-    retry_count=0
+    echo 0 > $retryfilename
   fi
 
   # write new retry count to file
-  echo $retry_count > $retryfilename
   echo "and you can see that $(cat $retryfilename)"
 
   aws --endpoint-url 'http://s3-bos.wgbh.org' s3api put-object --bucket $DRTRANSCODE_OUTPUT_BUCKET --key "dr-transcode-retries/${retryfilename}" --body $retryfilename

@@ -151,6 +151,10 @@ def handle_stopping_jobs(jobs)
       delete_volume(job["uid"])
       # puts "Cleaning workspace folder for completed job #{job["uid"]}"
       # puts `rm -rf /workspace/#{job["uid"]}`
+
+      # finished with this job, remove retry process file
+      # race condition with missing file from dr-ffmpeg pod, just leave it
+      # delete_retry_file(job["uid"])
     else
 
       # check for error file...
@@ -183,8 +187,6 @@ def delete_volume(uid)
 end
 
 def build_pod_yml(uid, job_type, input_filepath, input_bucketname)
-
-
   if job_type == JobType::CreateProxy
 
     pod_yml_content = %{
@@ -492,13 +494,21 @@ def handle_retry_file(uid)
 
   `aws --endpoint-url 'http://s3-bos.wgbh.org' s3api get-object --bucket streaming-proxies --key "dr-transcode-retries/#{retryfilename}" "#{retryfilename}"`
   number_retries = `cat #{retryfilename}`
-  `rm #{retryfilename}`
+  puts "Detected number of retries for #{uid} was #{number_retries}"
 
+  if number_retries && !number_retries.empty?
+    `rm #{retryfilename}`
+  else
+    # file wasnt initialized, so initialize this!
+    number_retries = 0
+  end
 
-  puts "duh retry for #{uid} is #{number_retries}"
   @client.query(%(UPDATE jobs SET retry_count="#{ number_retries }" WHERE uid="#{ uid }"))
+end
 
-  `aws --endpoint-url 'http://s3-bos.wgbh.org' s3api delete-object --bucket streaming-proxies --key "dr-transcode-retries/#{retryfilename}"`
+def delete_retry_file(uid)
+  puts "Removing retry file for #{uid}..."
+  `aws --endpoint-url 'http://s3-bos.wgbh.org' s3api delete-object --bucket streaming-proxies --key "dr-transcode-retries/retry-#{uid}.txt"`
 end
 
 # check if its time to LIVE
