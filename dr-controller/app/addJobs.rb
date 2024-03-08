@@ -19,13 +19,13 @@ end
 
 # load db..
 @client = Mysql2::Client.new(host: "mysql", username: "root", database: "drtranscode", password: "", port: 3306)
-File.read("proxylist_432023_specialcollections.csv").split("\n").each do |row|
+File.read("CVG_Season02_moreAudioFix-fixed.txt").split("\n").each do |row|
 
   bucket, key = row.split(",")
 
   uid = SecureRandom.uuid
 
-  query = %(INSERT INTO jobs (uid, status, input_filepath, job_type, input_bucketname) VALUES("#{uid}", #{JobStatus::Received}, "#{key}", #{JobType::CreateProxy}, "#{bucket}"))
+  query = %(INSERT INTO jobs (uid, status, input_filepath, job_type, input_bucketname) VALUES("#{uid}", #{JobStatus::Received}, "#{key}", #{JobType::PreserveLeftAudio}, "#{bucket}"))
   puts "Now doing..."
   puts query
   @client.query(query)

@@ -1,4 +1,3 @@
-# IMPORTANT :: For right now, you have to run crontab -e .. :wq on controller in order for crontab to take effect - then we get 2 work
 require 'mysql2'
 require 'securerandom'
 require 'json'
@@ -28,57 +27,57 @@ end
 # load db..
 @client = Mysql2::Client.new(host: "mysql", username: "root", database: "drtranscode", password: "", port: 3306)
 
-# ruby aws-sdk-sqs does not support custom port numbers when specifying a custom endpoint, so just use the cli instead
-def receive_sqs_messages(queue_url)
-  # returns json string of output
-  msgjson = `aws --region region1 --endpoint-url 'http://s3-sqs.wgbh.org:18090/' sqs receive-message --max-number-of-messages 10 --queue-url #{queue_url}`
+# # ruby aws-sdk-sqs does not support custom port numbers when specifying a custom endpoint, so just use the cli instead
+# def receive_sqs_messages(queue_url)
+#   # returns json string of output
+#   msgjson = `aws --region region1 --endpoint-url 'http://s3-sqs.wgbh.org:18090/' sqs receive-message --max-number-of-messages 10 --queue-url #{queue_url}`
 
-  begin
-    msgs = JSON.parse(msgjson)
-  rescue JSON::ParserError
-    return []
-  end
+#   begin
+#     msgs = JSON.parse(msgjson)
+#   rescue JSON::ParserError
+#     return []
+#   end
 
-  return msgs["Messages"]
-end
+#   return msgs["Messages"]
+# end
   
-def process_sqs_messages(queue_url, msgs)
+# def process_sqs_messages(queue_url, msgs)
 
-  puts "got SQS messages #{msgs}"
-  if msgs && msgs[0]
-    msgs.each do |message|
+#   puts "got SQS messages #{msgs}"
+#   if msgs && msgs[0]
+#     msgs.each do |message|
 
-      puts "GOT MESSAGE! #{message}"
-      job_type = message[:job_type]
-      input_filepath = message[:key]
-      input_bucketname = message[:bucket]
+#       puts "GOT MESSAGE! #{message}"
+#       job_type = message[:job_type]
+#       input_filepath = message[:key]
+#       input_bucketname = message[:bucket]
 
-      # make sure there is not already a matching, unfailed job of this jobtype
-      if validate_for_init(input_bucketname, input_filepath, job_type)
-        # if the input key already exists as a nonfailed job, DONT create a new JOB
+#       # make sure there is not already a matching, unfailed job of this jobtype
+#       if validate_for_init(input_bucketname, input_filepath, job_type)
+#         # if the input key already exists as a nonfailed job, DONT create a new JOB
 
-        puts "Here we go initting job"
-        uid = init_job(input_bucketname, input_filepath, job_type)
+#         puts "Here we go initting job"
+#         uid = init_job(input_bucketname, input_filepath, job_type)
 
-        if validate_for_jobstart(uid, job_type, input_bucketname, input_filepath)
+#         if validate_for_jobstart(uid, job_type, input_bucketname, input_filepath)
           
-          # input file does exist!
-          # output file does NOT exist, unless audiosplit job
+#           # input file does exist!
+#           # output file does NOT exist, unless audiosplit job
 
-          puts "Succeeded validation for job #{uid} key #{input_filepath} in bucket #{input_bucketname} with job_type #{job_type} - job will begin shortly."
-        else
-          puts ""
-        end
+#           puts "Succeeded validation for job #{uid} key #{input_filepath} in bucket #{input_bucketname} with job_type #{job_type} - job will begin shortly."
+#         else
+#           puts ""
+#         end
 
-      else
-        puts "Failed to initialize job for #{input_filepath} in bucket #{input_bucketname} of job_type #{job_type} - nonfailed job(s) exist for this path."
-      end
+#       else
+#         puts "Failed to initialize job for #{input_filepath} in bucket #{input_bucketname} of job_type #{job_type} - nonfailed job(s) exist for this path."
+#       end
     
-      puts "Deleting processed SQS message #{message[:receipt_handle]}"
-      delete_sqs_message(queue_url, message[:receipt_handle])
-    end
-  end
-end
+#       puts "Deleting processed SQS message #{message[:receipt_handle]}"
+#       delete_sqs_message(queue_url, message[:receipt_handle])
+#     end
+#   end
+# end
 
 def handle_starting_jobs(jobs)
   jobs.each do |job|
@@ -99,7 +98,7 @@ def handle_starting_jobs(jobs)
     end
 
     puts "There are #{number_ffmpeg_pods} running right now..."
-    if number_ffmpeg_pods.to_i < 4
+    if number_ffmpeg_pods.to_i < 24
 
       puts "Ooh yeah - I'm starting #{job["uid"]}!"
       begin_job(job["uid"])
@@ -140,7 +139,6 @@ def handle_stopping_jobs(jobs)
     handle_retry_file(job["uid"])
 
     if job_finished
-      # head-object returns "" in this context when 404, otherwise gives a zesty pan-fried json message as a String
       puts "Job Succeeded - Attempting to delete pod #{pod_name}"
       puts `kubectl --kubeconfig=/mnt/kubectl-secret --namespace=dr-transcode delete pod #{pod_name}`
       set_job_status(job["uid"], JobStatus::CompletedWork)
@@ -226,7 +224,7 @@ spec:
       resources:
         limits:
           memory: "4000Mi"
-          cpu: "2000m"
+          cpu: "1000m"
       volumeMounts:
       - mountPath: /root/.aws
         name: obstoresecrets
@@ -252,6 +250,18 @@ spec:
 
     pod_yml_content = %{
 apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: dr-transcode-pvc-#{uid}
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: efs-sc-999
+  resources:
+    requests:
+      storage: 150Gi
+---      
+apiVersion: v1
 kind: Pod
 metadata:
   name: dr-ffmpeg-audiosplit-#{uid}
@@ -265,9 +275,9 @@ spec:
         defaultMode: 256
         optional: false
         secretName: obstoresecrets
-    - name: dr-transcode-#{uid}
+    - name: dr-transcode-#{uid} 
       persistentVolumeClaim:
-        claimName: dr-transcode-#{uid}
+        claimName: dr-transcode-pvc-#{uid}
   containers:
     - name: dr-ffmpeg
       image: foggbh/dr-ffmpeg-audiosplit:latest
@@ -275,7 +285,7 @@ spec:
       resources:
         limits:
           memory: "4000Mi"
-          cpu: "2000m"
+          cpu: "1000m"
       volumeMounts:
       - mountPath: /root/.aws
         name: obstoresecrets

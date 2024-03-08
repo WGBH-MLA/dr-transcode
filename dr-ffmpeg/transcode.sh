@@ -51,8 +51,6 @@ echo "Let us begin!"
 
 # download input file
 workspace_folder=/workspace/"$DRTRANSCODE_UID"
-# temp v
-# workspace_folder=/root/"$DRTRANSCODE_UID"
 
 
 echo "Building expected output filename..."
@@ -84,9 +82,7 @@ fi
 mkdir -p $workspace_folder
 cd $workspace_folder
 
-echo "LISTEN"
 echo "Downloading input file to $local_input_filepath..."
-# aws --endpoint-url 'http://s3-bos.wgbh.org' s3api get-object --bucket $DRTRANSCODE_INPUT_BUCKET --key $DRTRANSCODE_INPUT_KEY $local_input_filepath
 # redirect stderr to this var
 download_output=$(aws --endpoint-url 'http://s3-bos.wgbh.org' s3api get-object --bucket $DRTRANSCODE_INPUT_BUCKET --key $DRTRANSCODE_INPUT_KEY $local_input_filepath 2>&1)
 if [[ $download_output == *"read, but total bytes expected is"* ]]; then
@@ -103,7 +99,7 @@ ffprobe_output=$( ffprobe $local_input_filepath 2>&1  )
 ffprobe_return="${PIPESTATUS[0]}"
 
 echo "ffprobe returned $ffprobe_return"
-if "$ffprobe_return" -ne "0";
+if [ "$ffprobe_return" -ne "0" ]
 then
   echo "ffprobe returned nonzero code... $ffprobe_return"
 fi
@@ -184,7 +180,7 @@ fi
 echo "ffmpeg output..."
 echo "$ffmpeg_output"
 
-if "$ffmpeg_return" -ne "0";
+if [ "$ffmpeg_return" -ne "0" ]
 then
   echo "Messed up ffmpeg... trying to record error output for $DRTRANSCODE_UID"
   
@@ -210,7 +206,6 @@ echo "Uploading durations file ${DRTRANSCODE_UID}-durations.txt"
 # echo "catted $(cat ${workspace_folder}/${DRTRANSCODE_UID}-durations.txt)"
 aws --endpoint-url 'http://s3-bos.wgbh.org' s3api put-object --bucket $DRTRANSCODE_OUTPUT_BUCKET --key "${DRTRANSCODE_UID}-durations.txt" --body "${workspace_folder}/${DRTRANSCODE_UID}-durations.txt"
 echo "]!"
-
 
 increment_retry_file
 # (retry uses the same pod, because the output file will not be present, so job will just start over)
